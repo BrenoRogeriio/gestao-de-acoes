@@ -29,12 +29,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CorretoraExclusaoIntegrationTest {
 
     private static final String ORIGEM_DEV = "http://localhost:5173";
+    private static final String EMAIL_ADMIN = "admin.exclusao@example.com";
+    private static final String EMAIL_USER = "user.exclusao@example.com";
+    private static final String SENHA = "senha-segura-123";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private JdbcTemplate jdbc;
 
-    private String token;
+    private String tokenAdmin;
+    private String tokenUser;
 
     @BeforeEach
     void prepararCenario() throws Exception {
@@ -43,7 +47,10 @@ class CorretoraExclusaoIntegrationTest {
         jdbc.update("DELETE FROM acoes");
         jdbc.update("DELETE FROM corretoras");
         jdbc.update("DELETE FROM usuarios");
-        token = cadastrarEObterToken();
+        tokenUser = cadastrarEObterToken("Usuário Exclusão", EMAIL_USER);
+        cadastrarEObterToken("Admin Exclusão", EMAIL_ADMIN);
+        jdbc.update("UPDATE usuarios SET perfil = 'ADMIN' WHERE email = ?", EMAIL_ADMIN);
+        tokenAdmin = autenticarEObterToken(EMAIL_ADMIN);
     }
 
     @Test
@@ -76,7 +83,7 @@ class CorretoraExclusaoIntegrationTest {
     void excluirCorretoraInexistenteDeveRetornar404() throws Exception {
         mockMvc.perform(delete("/corretoras/999999")
                         .header(HttpHeaders.ORIGIN, ORIGEM_DEV)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNotFound())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGEM_DEV))
                 .andExpect(jsonPath("$.detail").value("Corretora não encontrada."));
@@ -88,7 +95,7 @@ class CorretoraExclusaoIntegrationTest {
 
         mockMvc.perform(delete("/corretoras/{id}", corretoraId)
                         .header(HttpHeaders.ORIGIN, ORIGEM_DEV)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isNoContent())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGEM_DEV))
                 .andExpect(content().string(""));
@@ -101,7 +108,7 @@ class CorretoraExclusaoIntegrationTest {
         Long corretoraId = inserirCorretora("22222222000191", "Corretora em uso");
         Long acaoId = inserirAcao();
         Long usuarioId = jdbc.queryForObject(
-                "SELECT id FROM usuarios WHERE email = 'exclusao@example.com'", Long.class);
+                "SELECT id FROM usuarios WHERE email = ?", Long.class, EMAIL_USER);
         jdbc.update("""
                 INSERT INTO transacoes (acao_id, corretora_id, usuario_id, tipo_transacao, quantidade,
                                         valor_unitario, preco_medio_operacao, data_hora_transacao)
@@ -114,7 +121,7 @@ class CorretoraExclusaoIntegrationTest {
 
         mockMvc.perform(delete("/corretoras/{id}", corretoraId)
                         .header(HttpHeaders.ORIGIN, ORIGEM_DEV)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
                 .andExpect(status().isConflict())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGEM_DEV))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
@@ -127,13 +134,55 @@ class CorretoraExclusaoIntegrationTest {
                 acaoId, usuarioId));
     }
 
-    private String cadastrarEObterToken() throws Exception {
+    @Test
+    void userTentandoExcluirDeveRetornar403EPreservarRegistroComCors() throws Exception {
+        Long corretoraId = inserirCorretora("33333333000191", "Corretora protegida");
+
+        mockMvc.perform(delete("/corretoras/{id}", corretoraId)
+                        .header(HttpHeaders.ORIGIN, ORIGEM_DEV)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenUser))
+                .andExpect(status().isForbidden())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGEM_DEV))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.title").value("Acesso negado"))
+                .andExpect(jsonPath("$.detail").value(
+                        "Você não possui autorização para acessar este recurso."));
+
+        assertEquals(1, contar("SELECT COUNT(*) FROM corretoras WHERE id = ?", corretoraId));
+    }
+
+    @Test
+    void claimAdminDoTokenNaoDeveSuperarPerfilUserAtualDoBanco() throws Exception {
+        Long corretoraId = inserirCorretora("44444444000191", "Corretora protegida pelo banco");
+        jdbc.update("UPDATE usuarios SET perfil = 'USER' WHERE email = ?", EMAIL_ADMIN);
+
+        mockMvc.perform(delete("/corretoras/{id}", corretoraId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAdmin))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+        assertEquals(1, contar("SELECT COUNT(*) FROM corretoras WHERE id = ?", corretoraId));
+    }
+
+    private String cadastrarEObterToken(String nome, String email) throws Exception {
         String resposta = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome":"Teste Exclusão","email":"exclusao@example.com","senha":"senha-segura-123"}
-                                """))
+                                {"nome":"%s","email":"%s","senha":"%s"}
+                                """.formatted(nome, email, SENHA)))
                 .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        return objectMapper.readTree(resposta).get("token").asText();
+    }
+
+    private String autenticarEObterToken(String email) throws Exception {
+        String resposta = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","senha":"%s"}
+                                """.formatted(email, SENHA)))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         return objectMapper.readTree(resposta).get("token").asText();
     }

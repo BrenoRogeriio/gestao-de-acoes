@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, CircleAlert, Plus, TriangleAlert, X } from 'lucide-react';
+import { podeExcluirCorretora } from '../../auth/permissoes.js';
+import { useAuth } from '../../auth/useAuth.js';
 import { consultarCorretoras } from '../../services/corretoras.js';
 import {
     criarModeloCorretoras,
@@ -23,6 +25,7 @@ function Feedback({ feedback, onClose }) {
 }
 
 export default function Corretoras() {
+    const { usuario, carregando: perfilCarregando, atualizarUsuario } = useAuth();
     const [corretoras, setCorretoras] = useState([]);
     const [total, setTotal] = useState(0);
     const [filtros, setFiltros] = useState(FILTROS_INICIAIS);
@@ -31,7 +34,9 @@ export default function Corretoras() {
     const [erro, setErro] = useState(false);
     const [modalAberto, setModalAberto] = useState(false);
     const [corretoraParaExcluir, setCorretoraParaExcluir] = useState(null);
+    const [permissaoExclusaoNegada, setPermissaoExclusaoNegada] = useState(false);
     const [feedback, setFeedback] = useState(null);
+    const podeExcluir = podeExcluirCorretora(usuario, perfilCarregando || permissaoExclusaoNegada);
 
     const aplicarDados = dados => {
         setCorretoras(dados.corretoras);
@@ -92,6 +97,20 @@ export default function Corretoras() {
         });
     };
 
+    const exclusaoNegada = async () => {
+        setPermissaoExclusaoNegada(true);
+        setCorretoraParaExcluir(null);
+        setFeedback({
+            tone: 'error',
+            message: 'Você não tem permissão para excluir corretoras.'
+        });
+        try {
+            await atualizarUsuario();
+        } catch (falha) {
+            if (falha?.status !== 401) console.error(falha);
+        }
+    };
+
     const modelo = criarModeloCorretoras({ loading: carregando, error: erro, corretoras, total, ...filtros });
     const filtrosAtivos = Boolean(filtros.busca.trim()) || filtros.situacao !== SITUACAO_TODAS;
 
@@ -114,12 +133,12 @@ export default function Corretoras() {
                     <CorretorasFiltros filtros={filtros} onChange={setFiltros} onClear={() => setFiltros(FILTROS_INICIAIS)} />
                     {modelo.estado === 'filtered-empty'
                         ? <EmptyState title="Nenhuma instituição encontrada" description="Nenhuma corretora corresponde à busca ou à situação selecionada." action={<button className="button button-secondary" type="button" onClick={() => setFiltros(FILTROS_INICIAIS)}>Limpar filtros</button>} />
-                        : <CorretorasLista modelo={modelo} resumo={resumoCorretoras(modelo, filtrosAtivos)} onDelete={setCorretoraParaExcluir} />}
+                        : <CorretorasLista modelo={modelo} resumo={resumoCorretoras(modelo, filtrosAtivos)} podeExcluir={podeExcluir} onDelete={setCorretoraParaExcluir} />}
                 </>
             )}
             {atualizando && <span className="brokers-refreshing" role="status">Atualizando lista…</span>}
             {modalAberto && <CorretoraFormModal onClose={() => setModalAberto(false)} onSuccess={cadastrarConcluido} />}
-            {corretoraParaExcluir && <CorretoraDeleteModal corretora={corretoraParaExcluir} onClose={() => setCorretoraParaExcluir(null)} onSuccess={exclusaoConcluida} />}
+            {podeExcluir && corretoraParaExcluir && <CorretoraDeleteModal corretora={corretoraParaExcluir} onClose={() => setCorretoraParaExcluir(null)} onSuccess={exclusaoConcluida} onForbidden={exclusaoNegada} />}
         </div>
     );
 }

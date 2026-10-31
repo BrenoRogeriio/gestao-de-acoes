@@ -43,6 +43,12 @@ export default function AuthProvider({ children }) {
         return dados.usuario;
     }, []);
 
+    const atualizarUsuario = useCallback(async () => {
+        const usuarioAtualizado = await obterUsuarioAutenticado();
+        setUsuario(usuarioAtualizado);
+        return usuarioAtualizado;
+    }, []);
+
     const login = useCallback(async credenciais => aplicarAutenticacao(await autenticar(credenciais)), [aplicarAutenticacao]);
     const cadastrar = useCallback(async cadastro => aplicarAutenticacao(await cadastrarUsuario(cadastro)), [aplicarAutenticacao]);
     const logout = useCallback(() => {
@@ -57,10 +63,11 @@ export default function AuthProvider({ children }) {
         carregando,
         mensagemSessao,
         limparMensagemSessao: () => setMensagemSessao(''),
+        atualizarUsuario,
         login,
         cadastrar,
         logout
-    }), [usuario, carregando, mensagemSessao, login, cadastrar, logout]);
+    }), [usuario, carregando, mensagemSessao, atualizarUsuario, login, cadastrar, logout]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

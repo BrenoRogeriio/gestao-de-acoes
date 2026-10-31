@@ -184,12 +184,33 @@ test('exclusão bloqueada mostra a mensagem amigável do ProblemDetail 409', asy
         /existem operações vinculadas/
     );
 });
-test('lista apresenta botão Excluir e abre confirmação explícita', async () => {
+test('DELETE 403 mostra falta de permissão com status preservado', async () => {
+    await assert.rejects(
+        excluirCorretora(7, async () => resposta({ detail: 'Acesso negado.' }, { ok: false, status: 403 })),
+        erro => erro.status === 403 && erro.message === 'Você não tem permissão para excluir corretoras.'
+    );
+});
+test('lista exibe Excluir somente com permissão administrativa', async () => {
     const lista = await readFile(new URL('../components/corretoras/CorretorasLista.jsx', import.meta.url), 'utf8');
+    assert.match(lista, /podeExcluir && <td><BotaoExcluir/);
+    assert.match(lista, /podeExcluir && <BotaoExcluir/);
+});
+test('ADMIN inicia o modal de confirmação já existente', async () => {
+    const pagina = await readFile(new URL('../components/corretoras/Corretoras.jsx', import.meta.url), 'utf8');
     const modal = await readFile(new URL('../components/corretoras/CorretoraDeleteModal.jsx', import.meta.url), 'utf8');
-    assert.match(lista, /> Excluir<\/button>/);
+    assert.match(pagina, /podeExcluir && corretoraParaExcluir && <CorretoraDeleteModal/);
+    assert.match(pagina, /onDelete=\{setCorretoraParaExcluir\}/);
     assert.match(modal, /Excluir esta corretora\?/);
     assert.match(modal, /só será permitida se não existirem operações vinculadas/);
+});
+test('403 fecha o modal, revalida /auth/me e mostra mensagem sem confundir com 409', async () => {
+    const pagina = await readFile(new URL('../components/corretoras/Corretoras.jsx', import.meta.url), 'utf8');
+    const modal = await readFile(new URL('../components/corretoras/CorretoraDeleteModal.jsx', import.meta.url), 'utf8');
+    assert.match(modal, /falha\?\.status === 403/);
+    assert.match(modal, /await onForbidden\?\.\(\)/);
+    assert.match(pagina, /exclusaoNegada[\s\S]*setCorretoraParaExcluir\(null\)/);
+    assert.match(pagina, /exclusaoNegada[\s\S]*await atualizarUsuario\(\)/);
+    assert.match(pagina, /Você não tem permissão para excluir corretoras\./);
 });
 test('cancelamento fecha o modal sem executar a função de exclusão', async () => {
     const modal = await readFile(new URL('../components/corretoras/CorretoraDeleteModal.jsx', import.meta.url), 'utf8');

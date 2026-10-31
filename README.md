@@ -32,7 +32,10 @@ O frontend React/Vite consome a API HTTP/JSON Spring Boot. O backend organiza o 
 As integrações externas usam timeouts explícitos de conexão e leitura (3 s e 5 s por padrão),
 configuráveis por `EXTERNAL_API_CONNECT_TIMEOUT_MS` e `EXTERNAL_API_READ_TIMEOUT_MS`.
 
-Detalhes estão em [Arquitetura](docs/ARQUITETURA.md) e [API](docs/API.md).
+Detalhes estão em [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md) e
+[Aula 13 — autenticação e autorização JWT](docs/AULA-13-JWT.md). Para testes manuais,
+importe a [coleção Postman da Aula 13](docs/postman/Gestao-Acoes-Aula-13.postman_collection.json)
+e o [ambiente de exemplo](docs/postman/Gestao-Acoes-Aula-13.postman_environment.json).
 
 ## Requisitos
 
@@ -63,7 +66,9 @@ Variáveis principais:
 | `BRAPI_TOKEN` | Token da Brapi |
 | `TWELVE_DATA_API_KEY` | Chave da Twelve Data |
 | `JWT_SECRET` | Segredo externo de pelo menos 32 bytes para assinatura JWT |
+| `JWT_ISSUER` | Emissor obrigatório dos JWTs; padrão local `gestao-acoes` |
 | `JWT_EXPIRATION_MINUTES` | Duração do access token em minutos |
+| `APP_ADMIN_USERNAME`, `APP_ADMIN_PASSWORD` | Bootstrap opcional do ADMIN no profile `dev`; username representa um e-mail válido |
 | `CORS_ALLOWED_ORIGINS` | Origens permitidas, separadas por vírgula; `*` não é aceito |
 | `SWAGGER_ENABLED` | Habilita Swagger no profile `prod`; padrão seguro `false` |
 | `APP_PORT`, `FRONTEND_PORT`, `POSTGRES_PORT` | Portas publicadas pelo Compose |
@@ -263,6 +268,11 @@ Crie uma conta pela tela `/cadastro` ou por `POST /auth/register`. Cadastro e lo
 
 Todas as APIs de ações, corretoras e carteira exigem `Authorization: Bearer <token>`. Ações e corretoras são referências globais. Posições, transações, histórico, resumo e resultados pertencem ao usuário obtido do JWT/SecurityContext. A API nunca aceita `usuarioId` do cliente para escolher o proprietário da carteira.
 
+O cadastro público sempre cria perfil `USER`. Operações HTTP `DELETE` de negócio exigem
+`ROLE_ADMIN`; atualmente a operação disponível é `DELETE /corretoras/{id}`. As permissões
+efetivas são recarregadas do banco em cada requisição e não dependem exclusivamente da claim
+informativa `authorities` presente no JWT.
+
 Registros financeiros anteriores ao isolamento permanecem no banco com `usuario_id NULL`, não foram atribuídos automaticamente e não aparecem nas consultas autenticadas.
 
 ## Regras financeiras
@@ -339,4 +349,4 @@ compose.yaml             stack local PostgreSQL, backend e frontend
 
 ## Limitações atuais
 
-O sistema não implementa impostos, taxas, dividendos/proventos, conversão cambial, refresh token, recuperação de senha, MFA, permissões administrativas, auditoria completa de banco ou tracing distribuído. A disponibilidade e os limites dos provedores externos também afetam atualizações cadastrais e de cotação.
+O sistema não implementa impostos, taxas, dividendos/proventos, conversão cambial, refresh token, recuperação de senha, MFA, revogação antecipada de JWT, auditoria completa de banco ou tracing distribuído. A disponibilidade e os limites dos provedores externos também afetam atualizações cadastrais e de cotação.

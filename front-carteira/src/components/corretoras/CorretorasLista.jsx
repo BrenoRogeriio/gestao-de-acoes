@@ -44,7 +44,7 @@ function BotaoExcluir({ corretora, onDelete }) {
     return <button className="button button-secondary broker-delete-trigger" type="button" onClick={() => onDelete(corretora)} aria-label={`Excluir ${nomeDaCorretora(corretora)}`}><Trash2 size={15} aria-hidden="true" /> Excluir</button>;
 }
 
-export default function CorretorasLista({ modelo, resumo, onDelete }) {
+export default function CorretorasLista({ modelo, resumo, podeExcluir, onDelete }) {
     return (
         <Card className="brokers-list" aria-labelledby="brokers-list-title">
             <div className="brokers-list-header">
@@ -53,7 +53,7 @@ export default function CorretorasLista({ modelo, resumo, onDelete }) {
             </div>
             <div className="brokers-table-wrap">
                 <table className="data-table brokers-table">
-                    <thead><tr><th scope="col">Instituição</th><th scope="col">CNPJ</th><th scope="col">Situação</th><th scope="col">CVM</th><th scope="col">Localização</th><th scope="col">Contato</th><th scope="col"><span className="sr-only">Ações</span></th></tr></thead>
+                    <thead><tr><th scope="col">Instituição</th><th scope="col">CNPJ</th><th scope="col">Situação</th><th scope="col">CVM</th><th scope="col">Localização</th><th scope="col">Contato</th>{podeExcluir && <th scope="col"><span className="sr-only">Ações</span></th>}</tr></thead>
                     <tbody>{modelo.corretoras.map(corretora => (
                         <tr key={corretora.id}>
                             <td><IdentidadeCorretora corretora={corretora} /></td>
@@ -62,7 +62,7 @@ export default function CorretorasLista({ modelo, resumo, onDelete }) {
                             <td><StatusCvm corretora={corretora} /></td>
                             <td><div className="broker-location"><span><MapPin size={14} aria-hidden="true" />{localizacaoCorretora(corretora)}</span><DetalhesEndereco corretora={corretora} /></div></td>
                             <td><Contato corretora={corretora} /></td>
-                            <td><BotaoExcluir corretora={corretora} onDelete={onDelete} /></td>
+                            {podeExcluir && <td><BotaoExcluir corretora={corretora} onDelete={onDelete} /></td>}
                         </tr>
                     ))}</tbody>
                 </table>
@@ -78,7 +78,7 @@ export default function CorretorasLista({ modelo, resumo, onDelete }) {
                             <div className="broker-card-contact"><dt>Contato</dt><dd><Contato corretora={corretora} /></dd></div>
                         </dl>
                         <DetalhesEndereco corretora={corretora} />
-                        <BotaoExcluir corretora={corretora} onDelete={onDelete} />
+                        {podeExcluir && <BotaoExcluir corretora={corretora} onDelete={onDelete} />}
                     </article>
                 ))}
             </div>

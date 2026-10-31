@@ -34,5 +34,8 @@ export async function consultarCorretoraPorId(id, signal, request = apiFetch) {
 
 export async function excluirCorretora(id, request = apiFetch) {
     const resposta = await request(`/corretoras/${id}`, { method: 'DELETE' });
+    if (resposta.status === 403) {
+        throw Object.assign(new Error('Você não tem permissão para excluir corretoras.'), { status: 403 });
+    }
     if (!resposta.ok) throw await erroCorretoraDaResposta(resposta, 'Não foi possível excluir a instituição.');
 }

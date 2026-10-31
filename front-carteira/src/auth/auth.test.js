@@ -7,6 +7,7 @@ import { identidadeUsuario } from './usuario.js';
 import { prepararCadastro, prepararLogin, validarCadastro, validarLogin } from './validacao.js';
 import { resolverAcesso } from './rotas.js';
 import { CHAVE_TOKEN_SESSAO, lerTokenJWT, limparTokenJWT, salvarTokenJWT } from './session.js';
+import { podeExcluirCorretora } from './permissoes.js';
 
 class SessionStorageFake {
     #dados = new Map();
@@ -86,9 +87,16 @@ test('restauração consulta /auth/me e retorna o usuário', async () => {
     const request = async (path, options) => {
         assert.equal(path, '/auth/me');
         assert.equal(options.cache, 'no-store');
-        return new Response(JSON.stringify({ nome: 'Ana', email: 'ana@example.com' }), { status: 200 });
+        return new Response(JSON.stringify({ nome: 'Ana', email: 'ana@example.com', perfil: 'ADMIN' }), { status: 200 });
     };
-    assert.deepEqual(await obterUsuarioAutenticado(undefined, request), { nome: 'Ana', email: 'ana@example.com' });
+    assert.deepEqual(await obterUsuarioAutenticado(undefined, request), { nome: 'Ana', email: 'ana@example.com', perfil: 'ADMIN' });
+});
+
+test('permissão de exclusão só é liberada para ADMIN com perfil carregado', () => {
+    assert.equal(podeExcluirCorretora({ perfil: 'USER' }), false);
+    assert.equal(podeExcluirCorretora({ perfil: 'ADMIN' }), true);
+    assert.equal(podeExcluirCorretora({ perfil: 'ADMIN' }, true), false);
+    assert.equal(podeExcluirCorretora(null), false);
 });
 
 test('token inválido é removido após 401 de rota protegida', async () => {
@@ -106,6 +114,16 @@ test('401 global limpa a sessão e aciona o encerramento uma única vez', async 
     await apiFetch('/carteira');
     assert.equal(lerTokenJWT(), null);
     assert.equal(encerramentos, 1);
+});
+
+test('403 preserva a sessão e não aciona o encerramento global', async () => {
+    salvarTokenJWT('token-valido');
+    let encerramentos = 0;
+    configurarTratamentoNaoAutorizado(() => { encerramentos += 1; });
+    globalThis.fetch = async () => new Response(null, { status: 403 });
+    await apiFetch('/corretoras/7', { method: 'DELETE' });
+    assert.equal(lerTokenJWT(), 'token-valido');
+    assert.equal(encerramentos, 0);
 });
 
 test('rota protegida sem autenticação redireciona para login', () => {

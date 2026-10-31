@@ -41,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class AutenticacaoIntegrationTest {
 
+    private static final String ISSUER_TESTE = "gestao-acoes";
     private static final String SENHA = "senha-segura-123";
     private static final String SEGREDO_TESTE = "test-only-jwt-secret-with-at-least-32-bytes-long";
 
@@ -226,6 +227,7 @@ class AutenticacaoIntegrationTest {
         Usuario usuario = usuarioRepository.saveAndFlush(novoUsuario("usuario@example.com", true));
         Instant agora = Instant.now();
         String tokenExpirado = Jwts.builder()
+                .issuer(ISSUER_TESTE)
                 .subject(usuario.getEmail())
                 .issuedAt(Date.from(agora.minusSeconds(120)))
                 .expiration(Date.from(agora.minusSeconds(60)))
@@ -237,10 +239,42 @@ class AutenticacaoIntegrationTest {
     }
 
     @Test
+    void jwtSemIssuerDeveRetornar401() throws Exception {
+        Usuario usuario = usuarioRepository.saveAndFlush(novoUsuario("usuario@example.com", true));
+        Instant agora = Instant.now();
+        String tokenSemIssuer = Jwts.builder()
+                .subject(usuario.getEmail())
+                .issuedAt(Date.from(agora))
+                .expiration(Date.from(agora.plusSeconds(60)))
+                .signWith(Keys.hmacShaKeyFor(SEGREDO_TESTE.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
+                .compact();
+
+        mockMvc.perform(get("/acoes").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenSemIssuer))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void jwtComIssuerIncorretoDeveRetornar401() throws Exception {
+        Usuario usuario = usuarioRepository.saveAndFlush(novoUsuario("usuario@example.com", true));
+        Instant agora = Instant.now();
+        String tokenComIssuerIncorreto = Jwts.builder()
+                .issuer("outro-issuer")
+                .subject(usuario.getEmail())
+                .issuedAt(Date.from(agora))
+                .expiration(Date.from(agora.plusSeconds(60)))
+                .signWith(Keys.hmacShaKeyFor(SEGREDO_TESTE.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
+                .compact();
+
+        mockMvc.perform(get("/acoes").header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenComIssuerIncorreto))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void jwtAssinadoComOutraChaveDeveRetornarProblemDetail401() throws Exception {
         Usuario usuario = usuarioRepository.saveAndFlush(novoUsuario("usuario@example.com", true));
         Instant agora = Instant.now();
         String tokenComOutraChave = Jwts.builder()
+                .issuer(ISSUER_TESTE)
                 .subject(usuario.getEmail())
                 .issuedAt(Date.from(agora))
                 .expiration(Date.from(agora.plusSeconds(60)))

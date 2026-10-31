@@ -10,6 +10,10 @@ Authorization: Bearer <JWT>
 
 O Swagger UI, quando habilitado, permite informar esse token em **Authorize**. Erros usam `application/problem+json`. Todas as respostas incluem `X-Request-Id`; um cliente pode enviar um identificador seguro com até 64 caracteres.
 
+O cadastro público atribui `USER`. As operações HTTP `DELETE` nas rotas de negócio exigem
+`ROLE_ADMIN`. A autorização efetiva usa o perfil atual recarregado do banco; a claim
+`authorities` do JWT é informativa e não substitui essa consulta.
+
 ## Autenticação
 
 | Método e caminho | Autenticação | Entrada | Resposta e erros principais |
@@ -44,6 +48,7 @@ Corretoras são cadastros globais compartilhados e exigem JWT.
 | `GET /corretoras` | Listar corretoras paginadas | `page`, `size` e `sort`; retorna página |
 | `GET /corretoras/{id}` | Buscar por ID | Retorna corretora ou 404 |
 | `GET /corretoras/cnpj/{cnpj}` | Buscar por CNPJ | Retorna corretora ou 404 |
+| `DELETE /corretoras/{id}` | Excluir corretora; exige Bearer JWT de `ADMIN` | 204 sem body; 401 sem autenticação válida; 403 para `USER`; 404 para ID inexistente; 409 quando há operações vinculadas |
 
 O cadastro consulta ViaCEP e BrasilAPI/CVM. Indisponibilidade externa pode retornar 502 ou 503 com mensagem sanitizada.
 
@@ -98,9 +103,9 @@ Nenhum outro endpoint Actuator é exposto; rotas como `/actuator/env`, `/actuato
 
 - `400`: JSON ou campos inválidos;
 - `401`: autenticação ausente, inválida, expirada ou credenciais inválidas;
-- `403`: acesso negado;
+- `403`: usuário autenticado sem a permissão exigida, inclusive `USER` tentando executar `DELETE`;
 - `404`: recurso não encontrado;
-- `409`: e-mail já cadastrado;
+- `409`: conflito, como e-mail já cadastrado ou corretora com operações vinculadas;
 - `422`: regra de negócio ou idempotência incompatível;
 - `502`/`503`: falha sanitizada de provedor externo;
 - `500`: erro interno genérico, sem stack trace no cliente.

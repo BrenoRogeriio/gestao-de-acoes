@@ -43,6 +43,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/info").authenticated()
                         .requestMatchers("/actuator/**").denyAll()
+                        .requestMatchers(HttpMethod.DELETE, "/acoes/**", "/corretoras/**", "/carteira/**")
+                        .hasRole("ADMIN")
                         .requestMatchers("/acoes/**", "/corretoras/**", "/carteira/**", "/auth/me").authenticated()
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

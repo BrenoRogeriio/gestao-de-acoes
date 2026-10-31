@@ -3,7 +3,7 @@ import { LoaderCircle, Trash2, X } from 'lucide-react';
 import { excluirCorretora } from '../../services/corretoras.js';
 import { nomeDaCorretora } from '../../utils/corretoras.js';
 
-export default function CorretoraDeleteModal({ corretora, onClose, onSuccess }) {
+export default function CorretoraDeleteModal({ corretora, onClose, onSuccess, onForbidden }) {
     const [excluindo, setExcluindo] = useState(false);
     const [erro, setErro] = useState('');
     const excluindoRef = useRef(false);
@@ -51,6 +51,10 @@ export default function CorretoraDeleteModal({ corretora, onClose, onSuccess }) 
             await excluirCorretora(corretora.id);
             onSuccess(corretora);
         } catch (falha) {
+            if (falha?.status === 403) {
+                await onForbidden?.();
+                return;
+            }
             setErro(falha.message || 'Não foi possível excluir a instituição.');
             setExcluindo(false);
             excluindoRef.current = false;
