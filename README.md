@@ -5,6 +5,8 @@ Aplicação web para cadastro de ativos e corretoras, registro de compras e vend
 ## Funcionalidades
 
 - cadastro e login de usuários com senha protegida por BCrypt;
+- controle de acesso RBAC com perfis `USER` e `ADMIN`;
+- gestão administrativa de usuários, perfis, status e redefinição de senha;
 - sessão frontend com JWT Bearer armazenado em `sessionStorage`;
 - cadastro global de ações brasileiras e norte-americanas;
 - cadastro global de corretoras com validação de CEP, CNPJ e CVM;
@@ -32,10 +34,13 @@ O frontend React/Vite consome a API HTTP/JSON Spring Boot. O backend organiza o 
 As integrações externas usam timeouts explícitos de conexão e leitura (3 s e 5 s por padrão),
 configuráveis por `EXTERNAL_API_CONNECT_TIMEOUT_MS` e `EXTERNAL_API_READ_TIMEOUT_MS`.
 
-Detalhes estão em [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md) e
-[Aula 13 — autenticação e autorização JWT](docs/AULA-13-JWT.md). Para testes manuais,
-importe a [coleção Postman da Aula 13](docs/postman/Gestao-Acoes-Aula-13.postman_collection.json)
-e o [ambiente de exemplo](docs/postman/Gestao-Acoes-Aula-13.postman_environment.json).
+Detalhes estão em [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md),
+[Aula 13 — autenticação e autorização JWT](docs/AULA-13-JWT.md) e
+[Aula 14 — RBAC](docs/AULA-14-RBAC.md). Para testes manuais da Aula 14, importe a
+[coleção Postman RBAC](docs/postman/Gestao-Acoes-Aula-14.postman_collection.json) e reutilize o
+[ambiente de exemplo da Aula 13](docs/postman/Gestao-Acoes-Aula-13.postman_environment.json).
+As requisições mutáveis da coleção permanecem bloqueadas até a confirmação explícita de um
+ambiente isolado.
 
 ## Requisitos
 

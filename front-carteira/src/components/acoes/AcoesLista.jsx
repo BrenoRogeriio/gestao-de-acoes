@@ -32,7 +32,7 @@ function AtualizarButton({ acao, atualizando, onUpdate }) {
     );
 }
 
-export default function AcoesLista({ modelo, resumo, atualizandoIds, onUpdate }) {
+export default function AcoesLista({ modelo, resumo, podeAtualizarCotacao, atualizandoIds, onUpdate }) {
     return (
         <Card className="assets-list" aria-labelledby="assets-list-title">
             <div className="assets-list-header">
@@ -41,7 +41,7 @@ export default function AcoesLista({ modelo, resumo, atualizandoIds, onUpdate })
             </div>
             <div className="assets-table-wrap">
                 <table className="data-table assets-table">
-                    <thead><tr><th scope="col">Ativo</th><th scope="col">Mercado</th><th scope="col">Cotação atual</th><th scope="col">Última atualização</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead>
+                    <thead><tr><th scope="col">Ativo</th><th scope="col">Mercado</th><th scope="col">Cotação atual</th><th scope="col">Última atualização</th><th scope="col">Status</th>{podeAtualizarCotacao && <th scope="col">Ações</th>}</tr></thead>
                     <tbody>{modelo.acoes.map(acao => (
                         <tr key={acao.id}>
                             <td><IdentidadeAtivo acao={acao} /></td>
@@ -49,7 +49,7 @@ export default function AcoesLista({ modelo, resumo, atualizandoIds, onUpdate })
                             <td><CotacaoAtivo acao={acao} /></td>
                             <td className="assets-updated">{formatarDataHoraCotacao(acao.dataHoraCotacao)}</td>
                             <td><StatusCotacao acao={acao} /></td>
-                            <td><AtualizarButton acao={acao} atualizando={atualizandoIds.has(acao.id)} onUpdate={onUpdate} /></td>
+                            {podeAtualizarCotacao && <td><AtualizarButton acao={acao} atualizando={atualizandoIds.has(acao.id)} onUpdate={onUpdate} /></td>}
                         </tr>
                     ))}</tbody>
                 </table>
@@ -63,7 +63,7 @@ export default function AcoesLista({ modelo, resumo, atualizandoIds, onUpdate })
                             <div><dt>Cotação atual</dt><dd><CotacaoAtivo acao={acao} /></dd></div>
                             <div><dt>Atualizada em</dt><dd>{formatarDataHoraCotacao(acao.dataHoraCotacao)}</dd></div>
                         </dl>
-                        <AtualizarButton acao={acao} atualizando={atualizandoIds.has(acao.id)} onUpdate={onUpdate} />
+                        {podeAtualizarCotacao && <AtualizarButton acao={acao} atualizando={atualizandoIds.has(acao.id)} onUpdate={onUpdate} />}
                     </article>
                 ))}
             </div>

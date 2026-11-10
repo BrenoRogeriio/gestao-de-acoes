@@ -10,9 +10,10 @@ Authorization: Bearer <JWT>
 
 O Swagger UI, quando habilitado, permite informar esse token em **Authorize**. Erros usam `application/problem+json`. Todas as respostas incluem `X-Request-Id`; um cliente pode enviar um identificador seguro com até 64 caracteres.
 
-O cadastro público atribui `USER`. As operações HTTP `DELETE` nas rotas de negócio exigem
-`ROLE_ADMIN`. A autorização efetiva usa o perfil atual recarregado do banco; a claim
-`authorities` do JWT é informativa e não substitui essa consulta.
+O cadastro público atribui `USER`. Criação de ações e corretoras, atualização de cotação,
+exclusão de corretora e toda a API `/admin/usuarios/**` exigem `ROLE_ADMIN`. A autorização
+efetiva usa o perfil atual recarregado do banco; a claim `authorities` do JWT é informativa e
+não substitui essa consulta.
 
 ## Autenticação
 
@@ -30,11 +31,11 @@ Ações são cadastros globais compartilhados, mas todos os endpoints exigem JWT
 
 | Método e caminho | Finalidade | Entrada/resposta |
 |---|---|---|
-| `POST /acoes` | Cadastrar ação e buscar seus dados externos | Body com `ticker` e `mercado`; retorna 201 com a ação |
+| `POST /acoes` | Cadastrar ação e buscar seus dados externos; exige `ADMIN` | Body com `ticker` e `mercado`; retorna 201 com a ação |
 | `GET /acoes` | Listar ações paginadas | Parâmetros Spring `page`, `size` e `sort`; retorna página |
 | `GET /acoes/{id}` | Buscar por ID | Retorna ação ou 404 |
 | `GET /acoes/ticker/{ticker}` | Buscar por ticker | `mercado` opcional; retorna lista ou 404 |
-| `PUT /acoes/{id}/atualizar-cotacao` | Atualizar cotação no provedor correspondente | Retorna ação atualizada ou erro externo seguro |
+| `PUT /acoes/{id}/atualizar-cotacao` | Atualizar cotação no provedor correspondente; exige `ADMIN` | Retorna ação atualizada ou erro externo seguro |
 
 Mercados aceitos pelo contrato atual: `BRASIL` e `EUA`. A moeda é definida pelo mercado.
 
@@ -44,7 +45,7 @@ Corretoras são cadastros globais compartilhados e exigem JWT.
 
 | Método e caminho | Finalidade | Entrada/resposta |
 |---|---|---|
-| `POST /corretoras` | Cadastrar e validar corretora | Body com `cnpj`, `cep` e campos opcionais de contato/endereço; retorna 201 |
+| `POST /corretoras` | Cadastrar e validar corretora; exige `ADMIN` | Body com `cnpj`, `cep` e campos opcionais de contato/endereço; retorna 201 |
 | `GET /corretoras` | Listar corretoras paginadas | `page`, `size` e `sort`; retorna página |
 | `GET /corretoras/{id}` | Buscar por ID | Retorna corretora ou 404 |
 | `GET /corretoras/cnpj/{cnpj}` | Buscar por CNPJ | Retorna corretora ou 404 |
@@ -89,6 +90,24 @@ A chave é opcional, tem no máximo 100 caracteres e é isolada por usuário. Re
 | `GET /carteira/resumo` | Resumo financeiro do usuário | Lista agregada separadamente por BRL e USD |
 
 Conta nova recebe listas vazias. Registros legados com `usuario_id NULL` não são retornados.
+
+## Administração de usuários
+
+Todos os endpoints exigem Bearer JWT de `ADMIN`. Não existe exclusão de usuário; desativar uma
+conta preserva carteira e histórico. Respostas contêm apenas `id`, `nome`, `email`, `perfil`,
+`ativo` e `dataHoraCadastro`, nunca senha ou hash.
+
+| Método e caminho | Entrada | Resposta e erros principais |
+|---|---|---|
+| `POST /admin/usuarios` | `nome`, `email`, `senha`, `perfil` opcional (`USER` por padrão) | 201; 400 inválido; 409 e-mail duplicado |
+| `GET /admin/usuarios` | — | 200 com lista |
+| `GET /admin/usuarios/{id}` | — | 200; 404 inexistente |
+| `PATCH /admin/usuarios/{id}/perfil` | `perfil`: `USER` ou `ADMIN` | 200; 422 para própria conta ou último ADMIN |
+| `PATCH /admin/usuarios/{id}/status` | `ativo`: booleano | 200; 422 para própria conta ou último ADMIN |
+| `PUT /admin/usuarios/{id}/senha` | `novaSenha` com 8–72 caracteres | 204; 400 inválida; 404 inexistente |
+
+Detalhes conceituais, matriz RBAC e limitações de JWT estão em
+[Aula 14 — RBAC](AULA-14-RBAC.md).
 
 ## Observabilidade
 

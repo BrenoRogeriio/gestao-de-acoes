@@ -1,0 +1,340 @@
+{
+  "info": {
+    "_postman_id": "95c649bc-f093-4dcf-a7be-a14e00000014",
+    "name": "Gestão de Ações — Aula 14 RBAC",
+    "description": "Validação de RBAC e da API administrativa. Reutiliza as variáveis do ambiente da Aula 13. Requisições mutáveis ficam bloqueadas até ambienteIsolado=SIM e confirmarMutacoes=SIM. Use somente uma instância e um PostgreSQL descartáveis; nunca aponte esta coleção para o banco compartilhado.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const resposta = pm.response.text().toLowerCase();",
+          "pm.test('Resposta não expõe senha nem hash', () => {",
+          "  pm.expect(resposta).not.to.include('hash');",
+          "  pm.expect(resposta).not.to.match(/\"senha\"\\s*:/);",
+          "  pm.expect(resposta).not.to.match(/\\$2[aby]\\$/);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "userEmail", "value": "" },
+    { "key": "userPassword", "value": "" },
+    { "key": "adminEmail", "value": "" },
+    { "key": "adminPassword", "value": "" },
+    { "key": "userToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "acaoId", "value": "" },
+    { "key": "novoUsuarioEmail", "value": "aula14.user@example.invalid" },
+    { "key": "novoUsuarioSenha", "value": "" },
+    { "key": "novoAdminEmail", "value": "aula14.admin@example.invalid" },
+    { "key": "novoAdminSenha", "value": "" },
+    { "key": "usuarioCriadoId", "value": "" },
+    { "key": "adminCriadoId", "value": "" },
+    { "key": "ultimoAdminId", "value": "" },
+    { "key": "novaSenhaUsuario", "value": "" },
+    { "key": "ambienteIsolado", "value": "NAO" },
+    { "key": "confirmarMutacoes", "value": "NAO" }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticação",
+      "description": "Preencha userEmail, userPassword, adminEmail e adminPassword no ambiente local da Aula 13. Tokens são salvos somente no ambiente ativo.",
+      "item": [
+        {
+          "name": "Login de USER — 200",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"senha\": \"{{userPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Login USER retorna 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const json = pm.response.json();",
+              "  pm.test('Perfil é USER', () => pm.expect(json.usuario.perfil).to.eql('USER'));",
+              "  pm.environment.set('userToken', json.token);",
+              "}"
+            ]}
+          }]
+        },
+        {
+          "name": "Login de ADMIN — 200",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"senha\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Login ADMIN retorna 200', () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const json = pm.response.json();",
+              "  pm.test('Perfil é ADMIN', () => pm.expect(json.usuario.perfil).to.eql('ADMIN'));",
+              "  pm.environment.set('adminToken', json.token);",
+              "}"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "2. Matriz RBAC — leituras",
+      "item": [
+        {
+          "name": "USER consultando ações — 200",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/acoes?page=0&size=5"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('GET autenticado com USER retorna 200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "USER acessando administração — 403",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/usuarios"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('USER recebe 403 na administração', () => pm.response.to.have.status(403));"
+          ]}}]
+        },
+        {
+          "name": "Administração sem token — 401",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/usuarios"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Sem token recebe 401', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "ADMIN listando usuários — 200",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/usuarios"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('ADMIN lista usuários com 200', () => pm.response.to.have.status(200));",
+            "if (pm.response.code === 200) pm.test('Resposta é uma lista', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "3. Matriz RBAC — mutações negadas ao USER",
+      "description": "Embora o backend negue estas operações antes de alterar dados, execute-as somente em ambiente isolado.",
+      "event": [{
+        "listen": "prerequest",
+        "script": { "type": "text/javascript", "exec": [
+          "if (pm.variables.get('ambienteIsolado') !== 'SIM' || pm.variables.get('confirmarMutacoes') !== 'SIM') {",
+          "  throw new Error('Execução bloqueada: use banco descartável e defina ambienteIsolado=SIM e confirmarMutacoes=SIM.');",
+          "}"
+        ]}
+      }],
+      "item": [
+        {
+          "name": "USER tentando cadastrar ação — 403",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ticker\": \"AULA14\",\n  \"mercado\": \"BRASIL\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/acoes"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('USER não cadastra ação', () => pm.response.to.have.status(403));"
+          ]}}]
+        },
+        {
+          "name": "USER tentando cadastrar corretora — 403",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"cnpj\": \"02332886000104\",\n  \"cep\": \"01001000\",\n  \"numero\": \"100\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/corretoras"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('USER não cadastra corretora', () => pm.response.to.have.status(403));"
+          ]}}]
+        },
+        {
+          "name": "USER tentando atualizar cotação — 403",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/acoes/{{acaoId}}/atualizar-cotacao"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('USER não atualiza cotação', () => pm.response.to.have.status(403));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "4. Administração — ambiente isolado",
+      "description": "Fluxo mutável. Preencha senhas e IDs apenas em ambiente descartável. Execute em ordem. Para o cenário do último ADMIN, prepare uma base isolada com ultimoAdminId apontando ao único ADMIN ativo; quando ele for o próprio ator, a proteção da própria conta também pode ser a primeira regra a produzir 422.",
+      "event": [{
+        "listen": "prerequest",
+        "script": { "type": "text/javascript", "exec": [
+          "if (pm.variables.get('ambienteIsolado') !== 'SIM' || pm.variables.get('confirmarMutacoes') !== 'SIM') {",
+          "  throw new Error('Execução bloqueada: use banco descartável e defina ambienteIsolado=SIM e confirmarMutacoes=SIM.');",
+          "}"
+        ]}
+      }],
+      "item": [
+        {
+          "name": "ADMIN criando USER — 201",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nome\": \"Usuário Aula 14\",\n  \"email\": \"{{novoUsuarioEmail}}\",\n  \"senha\": \"{{novoUsuarioSenha}}\",\n  \"perfil\": \"USER\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/admin/usuarios"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('ADMIN cria USER com 201', () => pm.response.to.have.status(201));",
+            "if (pm.response.code === 201) {",
+            "  const json = pm.response.json();",
+            "  pm.test('Perfil criado é USER e conta está ativa', () => { pm.expect(json.perfil).to.eql('USER'); pm.expect(json.ativo).to.eql(true); });",
+            "  pm.collectionVariables.set('usuarioCriadoId', json.id);",
+            "}"
+          ]}}]
+        },
+        {
+          "name": "ADMIN consultando USER criado — 200",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/usuarios/{{usuarioCriadoId}}"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('ADMIN consulta usuário com 200', () => pm.response.to.have.status(200));",
+            "if (pm.response.code === 200) pm.test('ID corresponde ao criado', () => pm.expect(String(pm.response.json().id)).to.eql(String(pm.variables.get('usuarioCriadoId'))));"
+          ]}}]
+        },
+        {
+          "name": "ADMIN criando outro ADMIN — 201",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nome\": \"Administrador Aula 14\",\n  \"email\": \"{{novoAdminEmail}}\",\n  \"senha\": \"{{novoAdminSenha}}\",\n  \"perfil\": \"ADMIN\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/admin/usuarios"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('ADMIN cria outro ADMIN com 201', () => pm.response.to.have.status(201));",
+            "if (pm.response.code === 201) { const json = pm.response.json(); pm.test('Perfil criado é ADMIN', () => pm.expect(json.perfil).to.eql('ADMIN')); pm.collectionVariables.set('adminCriadoId', json.id); }"
+          ]}}]
+        },
+        {
+          "name": "ADMIN alterando perfil — 200",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"perfil\": \"ADMIN\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/admin/usuarios/{{usuarioCriadoId}}/perfil"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Perfil é alterado com 200', () => pm.response.to.have.status(200));",
+            "if (pm.response.code === 200) pm.test('Novo perfil é ADMIN', () => pm.expect(pm.response.json().perfil).to.eql('ADMIN'));"
+          ]}}]
+        },
+        {
+          "name": "ADMIN desativando usuário — 200",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ativo\": false\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/admin/usuarios/{{usuarioCriadoId}}/status"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Usuário é desativado com 200', () => pm.response.to.have.status(200));",
+            "if (pm.response.code === 200) pm.test('Status é inativo', () => pm.expect(pm.response.json().ativo).to.eql(false));"
+          ]}}]
+        },
+        {
+          "name": "ADMIN ativando usuário — 200",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ativo\": true\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/admin/usuarios/{{usuarioCriadoId}}/status"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Usuário é ativado com 200', () => pm.response.to.have.status(200));",
+            "if (pm.response.code === 200) pm.test('Status é ativo', () => pm.expect(pm.response.json().ativo).to.eql(true));"
+          ]}}]
+        },
+        {
+          "name": "ADMIN redefinindo senha — 204",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"novaSenha\": \"{{novaSenhaUsuario}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/admin/usuarios/{{usuarioCriadoId}}/senha"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Redefinição retorna 204', () => pm.response.to.have.status(204));",
+            "pm.test('Resposta não possui corpo', () => pm.expect(pm.response.text()).to.eql(''));"
+          ]}}]
+        },
+        {
+          "name": "Proteção do último ADMIN — 422",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ativo\": false\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/admin/usuarios/{{ultimoAdminId}}/status"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Último ADMIN não pode ser desativado: 422', () => pm.response.to.have.status(422));",
+            "if (pm.response.code === 422) {",
+            "  const detalhe = String(pm.response.json().detail || '').toLowerCase();",
+            "  pm.test('Detalhe indica proteção administrativa', () => pm.expect(detalhe).to.match(/último administrador ativo|própria conta/));",
+            "}"
+          ]}}]
+        }
+      ]
+    }
+  ]
+}

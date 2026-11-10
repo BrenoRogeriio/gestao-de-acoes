@@ -99,10 +99,23 @@ test('ordena por atualização com null ao final', () => {
     assert.deepEqual(criarModeloAcoes({ acoes: lista, ordenacao: 'atualizacao' }).acoes.map(acao => acao.ticker), ['MSFT', 'WEGE3', 'NULL3']);
 });
 
-test('abre cadastro por botões reais na página', async () => {
+test('cadastro e atualização de cotação aparecem somente com permissão administrativa', async () => {
     const componente = await readFile(new URL('../components/acoes/Acoes.jsx', import.meta.url), 'utf8');
-    assert.match(componente, /setModalAberto\(true\)/);
-    assert.match(componente, /> Nova ação<\/button>/);
+    const lista = await readFile(new URL('../components/acoes/AcoesLista.jsx', import.meta.url), 'utf8');
+    assert.match(componente, /podeCadastrarAcao/);
+    assert.match(componente, /action=\{podeCadastrar \?/);
+    assert.match(componente, /podeCadastrar && modalAberto/);
+    assert.match(componente, /podeAtualizarCotacaoGlobal/);
+    assert.match(lista, /podeAtualizarCotacao && <td><AtualizarButton/);
+    assert.match(lista, /podeAtualizarCotacao && <AtualizarButton/);
+});
+
+test('403 administrativo revalida o perfil sem encerrar a sessão', async () => {
+    const pagina = await readFile(new URL('../components/acoes/Acoes.jsx', import.meta.url), 'utf8');
+    const modal = await readFile(new URL('../components/acoes/AcaoFormModal.jsx', import.meta.url), 'utf8');
+    assert.match(pagina, /falha\?\.status === 403/);
+    assert.match(pagina, /await atualizarUsuario\(\)/);
+    assert.match(modal, /await onForbidden\?\.\(\)/);
 });
 
 test('prepara cadastro Brasil com os únicos campos do DTO', () => {

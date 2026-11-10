@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ROTAS_POR_PAGINA, navegar, observarNavegacao, resolverAcesso } from './auth/rotas.js';
+import { useCallback, useEffect, useState } from 'react';
+import { normalizarCaminho, ROTAS_POR_PAGINA, navegar, observarNavegacao, resolverAcesso } from './auth/rotas.js';
 import { useAuth } from './auth/useAuth.js';
 import AppLayout from './components/layout/AppLayout.jsx';
 import AuthLoading from './components/auth/AuthLoading.jsx';
@@ -12,6 +12,9 @@ import Dashboard from './components/dashboard/Dashboard.jsx';
 import MinhaCarteira from './components/carteira/MinhaCarteira.jsx';
 import HistoricoOperacoes from './components/historico/HistoricoOperacoes.jsx';
 import Acoes from './components/acoes/Acoes.jsx';
+import Usuarios from './components/usuarios/Usuarios.jsx';
+
+const ROTA_USUARIOS = ROTAS_POR_PAGINA.usuarios;
 
 const PAGINAS = {
     dashboard: { eyebrow: 'Visão geral', titulo: 'Dashboard', descricao: 'Visão geral da sua carteira de investimentos.' },
@@ -20,16 +23,47 @@ const PAGINAS = {
     corretoras: { eyebrow: 'Cadastros', titulo: 'Corretoras', descricao: 'Mantenha as instituições utilizadas nas suas operações.' },
     historico: { eyebrow: 'Movimentações', titulo: 'Histórico', descricao: 'Revise compras e vendas registradas na carteira.' },
     operacoes: { eyebrow: 'Movimentações', titulo: 'Lançamentos', descricao: 'Registre compras e vendas executadas na sua carteira.' },
-    investidores: { eyebrow: 'Em preparação', titulo: 'Investidores', descricao: 'Espaço reservado para uma evolução futura do sistema.' }
+    investidores: { eyebrow: 'Em preparação', titulo: 'Investidores', descricao: 'Espaço reservado para uma evolução futura do sistema.' },
+    usuarios: { eyebrow: 'Administração', titulo: 'Usuários', descricao: 'Gerencie acessos, perfis, status e credenciais das contas.' }
 };
 
 function App() {
-    const { usuario, autenticado, carregando, logout } = useAuth();
+    const { usuario, autenticado, carregando, atualizarUsuario, logout } = useAuth();
     const [caminho, setCaminho] = useState(() => window.location.pathname);
+    const [validandoAdmin, setValidandoAdmin] = useState(() => normalizarCaminho(window.location.pathname) === ROTA_USUARIOS);
     const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem('tema') === 'escuro');
-    const acesso = resolverAcesso({ caminho, autenticado, carregando });
+    const rotaAdministrativa = normalizarCaminho(caminho) === ROTA_USUARIOS;
+    const acesso = resolverAcesso({
+        caminho,
+        autenticado,
+        carregando: carregando || (rotaAdministrativa && validandoAdmin),
+        usuario
+    });
 
-    useEffect(() => observarNavegacao(() => setCaminho(window.location.pathname)), []);
+    useEffect(() => observarNavegacao(() => {
+        const proximoCaminho = window.location.pathname;
+        if (normalizarCaminho(proximoCaminho) === ROTA_USUARIOS) setValidandoAdmin(true);
+        setCaminho(proximoCaminho);
+    }), []);
+
+    useEffect(() => {
+        if (!rotaAdministrativa || carregando || !autenticado || !validandoAdmin) return undefined;
+        let ativo = true;
+        atualizarUsuario()
+            .catch(falha => {
+                if (falha?.status !== 401) navegar('/', { substituir: true });
+            })
+            .finally(() => { if (ativo) setValidandoAdmin(false); });
+        return () => { ativo = false; };
+    }, [atualizarUsuario, autenticado, carregando, rotaAdministrativa, validandoAdmin]);
+
+    useEffect(() => {
+        const revalidarAoRetomar = () => {
+            if (normalizarCaminho(window.location.pathname) === ROTA_USUARIOS) setValidandoAdmin(true);
+        };
+        window.addEventListener('focus', revalidarAoRetomar);
+        return () => window.removeEventListener('focus', revalidarAoRetomar);
+    }, []);
 
     useEffect(() => {
         localStorage.setItem('tema', temaEscuro ? 'escuro' : 'claro');
@@ -40,7 +74,13 @@ function App() {
     }, [acesso.estado, acesso.destino]);
 
     const alternarTema = () => setTemaEscuro(tema => !tema);
-    const irParaPagina = pagina => navegar(ROTAS_POR_PAGINA[pagina] ?? '/');
+    const revalidarPerfil = useCallback(async () => {
+        setValidandoAdmin(true);
+    }, []);
+    const irParaPagina = pagina => {
+        if (pagina === 'usuarios') setValidandoAdmin(true);
+        navegar(ROTAS_POR_PAGINA[pagina] ?? '/');
+    };
     const sair = () => {
         logout();
         navegar('/login', { substituir: true });
@@ -54,6 +94,7 @@ function App() {
             case 'operacoes': return <HomeBroker />;
             case 'acoes': return <Acoes />;
             case 'corretoras': return <Corretoras />;
+            case 'usuarios': return <Usuarios usuarioAtual={usuario} onForbidden={revalidarPerfil} />;
             case 'investidores': return <ContentState title="Módulo de investidores" description="Esta área continua reservada para uma etapa futura." />;
             default: return null;
         }

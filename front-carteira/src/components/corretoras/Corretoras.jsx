@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, CircleAlert, Plus, TriangleAlert, X } from 'lucide-react';
-import { podeExcluirCorretora } from '../../auth/permissoes.js';
+import { podeCadastrarCorretora, podeExcluirCorretora } from '../../auth/permissoes.js';
 import { useAuth } from '../../auth/useAuth.js';
 import { consultarCorretoras } from '../../services/corretoras.js';
 import {
@@ -34,9 +34,11 @@ export default function Corretoras() {
     const [erro, setErro] = useState(false);
     const [modalAberto, setModalAberto] = useState(false);
     const [corretoraParaExcluir, setCorretoraParaExcluir] = useState(null);
-    const [permissaoExclusaoNegada, setPermissaoExclusaoNegada] = useState(false);
+    const [permissaoAdministrativaNegada, setPermissaoAdministrativaNegada] = useState(false);
     const [feedback, setFeedback] = useState(null);
-    const podeExcluir = podeExcluirCorretora(usuario, perfilCarregando || permissaoExclusaoNegada);
+    const verificandoPermissao = perfilCarregando || permissaoAdministrativaNegada;
+    const podeCadastrar = podeCadastrarCorretora(usuario, verificandoPermissao);
+    const podeExcluir = podeExcluirCorretora(usuario, verificandoPermissao);
 
     const aplicarDados = dados => {
         setCorretoras(dados.corretoras);
@@ -97,12 +99,13 @@ export default function Corretoras() {
         });
     };
 
-    const exclusaoNegada = async () => {
-        setPermissaoExclusaoNegada(true);
+    const acessoAdministrativoNegado = async () => {
+        setPermissaoAdministrativaNegada(true);
+        setModalAberto(false);
         setCorretoraParaExcluir(null);
         setFeedback({
             tone: 'error',
-            message: 'Você não tem permissão para excluir corretoras.'
+            message: 'Você não tem permissão para executar esta ação administrativa.'
         });
         try {
             await atualizarUsuario();
@@ -124,10 +127,10 @@ export default function Corretoras() {
 
     return (
         <div className="brokers-page">
-            <PageHeader title="Corretoras cadastradas" description="Gerencie as instituições financeiras utilizadas nas operações da sua carteira." action={<button className="button button-primary" type="button" onClick={abrirCadastro}><Plus size={17} aria-hidden="true" /> Nova corretora</button>} />
+            <PageHeader title="Corretoras cadastradas" description="Consulte as instituições financeiras utilizadas nas operações da sua carteira." action={podeCadastrar ? <button className="button button-primary" type="button" onClick={abrirCadastro}><Plus size={17} aria-hidden="true" /> Nova corretora</button> : null} />
             {feedback && <Feedback feedback={feedback} onClose={() => setFeedback(null)} />}
             {modelo.estado === 'empty' ? (
-                <EmptyState title="Nenhuma instituição cadastrada" description="Cadastre uma corretora para utilizá-la nas operações da sua carteira." action={<button className="button button-primary" type="button" onClick={abrirCadastro}><Plus size={17} aria-hidden="true" /> Cadastrar corretora</button>} />
+                <EmptyState title="Nenhuma instituição cadastrada" description={podeCadastrar ? 'Cadastre uma corretora para utilizá-la nas operações da sua carteira.' : 'Ainda não existem corretoras disponíveis para consulta.'} action={podeCadastrar ? <button className="button button-primary" type="button" onClick={abrirCadastro}><Plus size={17} aria-hidden="true" /> Cadastrar corretora</button> : null} />
             ) : (
                 <>
                     <CorretorasFiltros filtros={filtros} onChange={setFiltros} onClear={() => setFiltros(FILTROS_INICIAIS)} />
@@ -137,8 +140,8 @@ export default function Corretoras() {
                 </>
             )}
             {atualizando && <span className="brokers-refreshing" role="status">Atualizando lista…</span>}
-            {modalAberto && <CorretoraFormModal onClose={() => setModalAberto(false)} onSuccess={cadastrarConcluido} />}
-            {podeExcluir && corretoraParaExcluir && <CorretoraDeleteModal corretora={corretoraParaExcluir} onClose={() => setCorretoraParaExcluir(null)} onSuccess={exclusaoConcluida} onForbidden={exclusaoNegada} />}
+            {podeCadastrar && modalAberto && <CorretoraFormModal onClose={() => setModalAberto(false)} onSuccess={cadastrarConcluido} onForbidden={acessoAdministrativoNegado} />}
+            {podeExcluir && corretoraParaExcluir && <CorretoraDeleteModal corretora={corretoraParaExcluir} onClose={() => setCorretoraParaExcluir(null)} onSuccess={exclusaoConcluida} onForbidden={acessoAdministrativoNegado} />}
         </div>
     );
 }

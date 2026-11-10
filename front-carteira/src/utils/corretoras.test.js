@@ -91,9 +91,9 @@ test('resume contagem no singular e plural', () => {
 
 test('abre cadastro pelos botões reais da página', async () => {
     const pagina = await readFile(new URL('../components/corretoras/Corretoras.jsx', import.meta.url), 'utf8');
-    assert.match(pagina, /setModalAberto\(true\)/);
-    assert.match(pagina, /Nova corretora/);
-    assert.match(pagina, /Cadastrar corretora/);
+    assert.match(pagina, /podeCadastrarCorretora/);
+    assert.match(pagina, /action=\{podeCadastrar \?/);
+    assert.match(pagina, /podeCadastrar && modalAberto/);
 });
 
 test('formulário possui somente campos do request real', () => assert.deepEqual(criarFormularioCorretora(), { cnpj: '', cep: '', numero: '', complemento: '', email: '', telefone: '' }));
@@ -208,9 +208,9 @@ test('403 fecha o modal, revalida /auth/me e mostra mensagem sem confundir com 4
     const modal = await readFile(new URL('../components/corretoras/CorretoraDeleteModal.jsx', import.meta.url), 'utf8');
     assert.match(modal, /falha\?\.status === 403/);
     assert.match(modal, /await onForbidden\?\.\(\)/);
-    assert.match(pagina, /exclusaoNegada[\s\S]*setCorretoraParaExcluir\(null\)/);
-    assert.match(pagina, /exclusaoNegada[\s\S]*await atualizarUsuario\(\)/);
-    assert.match(pagina, /Você não tem permissão para excluir corretoras\./);
+    assert.match(pagina, /acessoAdministrativoNegado[\s\S]*setCorretoraParaExcluir\(null\)/);
+    assert.match(pagina, /acessoAdministrativoNegado[\s\S]*await atualizarUsuario\(\)/);
+    assert.match(pagina, /Você não tem permissão para executar esta ação administrativa\./);
 });
 test('cancelamento fecha o modal sem executar a função de exclusão', async () => {
     const modal = await readFile(new URL('../components/corretoras/CorretoraDeleteModal.jsx', import.meta.url), 'utf8');

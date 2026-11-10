@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
     criarDistribuicao,
     criarModeloDashboard,
@@ -116,4 +117,11 @@ test('preserva resumo realizado mesmo sem posicao aberta', () => {
     assert.equal(modelo.estado, 'ready');
     assert.equal(modelo.semPosicoesComResultadoRealizado, true);
     assert.equal(modelo.resumo.resultadoRealizadoTotal, 350);
+});
+
+test('dashboard vazio oferece cadastro a ADMIN e compra a USER', async () => {
+    const componente = await readFile(new URL('../components/dashboard/Dashboard.jsx', import.meta.url), 'utf8');
+    assert.match(componente, /podeCadastrarAcao/);
+    assert.match(componente, /podeCadastrar \? 'acoes' : 'operacoes'/);
+    assert.match(componente, /podeCadastrar \? 'Cadastrar primeira ação' : 'Registrar primeira compra'/);
 });

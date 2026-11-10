@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -31,6 +32,7 @@ public class AcaoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AcaoResponseDTO> cadastrar(@Valid @RequestBody AcaoRequestDTO dto) {
         AcaoResponseDTO response = service.cadastrar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -63,6 +65,7 @@ public class AcaoController {
     }
 
     @PutMapping("/{id}/atualizar-cotacao")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AcaoResponseDTO> atualizarCotacao(@PathVariable Long id) {
         AcaoResponseDTO response = service.atualizarCotacao(id);
         return ResponseEntity.ok(response);

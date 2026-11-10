@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, CircleAlert, Plus, TriangleAlert, X } from 'lucide-react';
+import { podeAtualizarCotacaoGlobal, podeCadastrarAcao } from '../../auth/permissoes.js';
+import { useAuth } from '../../auth/useAuth.js';
 import { atualizarCotacaoAcao, consultarAcoes } from '../../services/acoes.js';
 import { criarModeloAcoes, MERCADO_TODOS, resumoAcoes } from '../../utils/acoes.js';
 import EmptyState from '../ui/EmptyState.jsx';
@@ -18,6 +20,7 @@ function Feedback({ feedback, onClose }) {
 }
 
 export default function Acoes() {
+    const { usuario, carregando: perfilCarregando, atualizarUsuario } = useAuth();
     const [acoes, setAcoes] = useState([]);
     const [total, setTotal] = useState(0);
     const [filtros, setFiltros] = useState(FILTROS_INICIAIS);
@@ -27,7 +30,11 @@ export default function Acoes() {
     const [modalAberto, setModalAberto] = useState(false);
     const [atualizandoIds, setAtualizandoIds] = useState(new Set());
     const [feedback, setFeedback] = useState(null);
+    const [permissaoAdministrativaNegada, setPermissaoAdministrativaNegada] = useState(false);
     const atualizacoesRef = useRef(new Set());
+    const verificandoPermissao = perfilCarregando || permissaoAdministrativaNegada;
+    const podeCadastrar = podeCadastrarAcao(usuario, verificandoPermissao);
+    const podeAtualizarCotacao = podeAtualizarCotacaoGlobal(usuario, verificandoPermissao);
 
     const aplicarDados = dados => {
         setAcoes(dados.acoes);
@@ -78,7 +85,19 @@ export default function Acoes() {
             : { tone: 'warning', message: `${acao.ticker} foi cadastrado, mas a lista não pôde ser atualizada agora.` });
     };
 
+    const acessoAdministrativoNegado = async () => {
+        setPermissaoAdministrativaNegada(true);
+        setModalAberto(false);
+        setFeedback({ tone: 'error', message: 'Você não tem permissão para executar esta ação administrativa.' });
+        try {
+            await atualizarUsuario();
+        } catch (falha) {
+            if (falha?.status !== 401) console.error(falha);
+        }
+    };
+
     const atualizarCotacao = async acao => {
+        if (!podeAtualizarCotacao) return;
         if (atualizacoesRef.current.has(acao.id)) return;
         atualizacoesRef.current.add(acao.id);
         setAtualizandoIds(new Set(atualizacoesRef.current));
@@ -88,6 +107,10 @@ export default function Acoes() {
             setAcoes(atuais => atuais.map(item => item.id === acao.id ? atualizada : item));
             setFeedback({ tone: 'success', message: `Cotação de ${acao.ticker} atualizada com sucesso.` });
         } catch (falha) {
+            if (falha?.status === 403) {
+                await acessoAdministrativoNegado();
+                return;
+            }
             setFeedback({ tone: 'error', message: falha.message || 'Não foi possível atualizar a cotação.' });
         } finally {
             atualizacoesRef.current.delete(acao.id);
@@ -103,20 +126,20 @@ export default function Acoes() {
 
     return (
         <div className="assets-page">
-            <PageHeader title="Ações cadastradas" description="Gerencie os ativos conhecidos pelo sistema e acompanhe suas cotações." action={<button className="button button-primary" type="button" onClick={() => { setFeedback(null); setModalAberto(true); }}><Plus size={17} aria-hidden="true" /> Nova ação</button>} />
+            <PageHeader title="Ações cadastradas" description="Consulte os ativos conhecidos pelo sistema e acompanhe suas cotações." action={podeCadastrar ? <button className="button button-primary" type="button" onClick={() => { setFeedback(null); setModalAberto(true); }}><Plus size={17} aria-hidden="true" /> Nova ação</button> : null} />
             {feedback && <Feedback feedback={feedback} onClose={() => setFeedback(null)} />}
             {modelo.estado === 'empty' ? (
-                <EmptyState title="Nenhum ativo cadastrado" description="Cadastre sua primeira ação para acompanhar cotações e utilizá-la na carteira." action={<button className="button button-primary" type="button" onClick={() => setModalAberto(true)}><Plus size={17} aria-hidden="true" /> Cadastrar ação</button>} />
+                <EmptyState title="Nenhum ativo cadastrado" description={podeCadastrar ? 'Cadastre sua primeira ação para acompanhar cotações e utilizá-la na carteira.' : 'Ainda não existem ativos disponíveis para consulta.'} action={podeCadastrar ? <button className="button button-primary" type="button" onClick={() => setModalAberto(true)}><Plus size={17} aria-hidden="true" /> Cadastrar ação</button> : null} />
             ) : (
                 <>
                     <AcoesFiltros filtros={filtros} onChange={setFiltros} onClear={() => setFiltros(FILTROS_INICIAIS)} />
                     {modelo.estado === 'filtered-empty' ? (
                         <EmptyState title="Nenhum ativo encontrado" description="Nenhum ativo corresponde à busca ou ao mercado selecionado." action={<button className="button button-secondary" type="button" onClick={() => setFiltros(FILTROS_INICIAIS)}>Limpar filtros</button>} />
-                    ) : <AcoesLista modelo={modelo} resumo={resumoAcoes(modelo, filtrosAtivos)} atualizandoIds={atualizandoIds} onUpdate={atualizarCotacao} />}
+                    ) : <AcoesLista modelo={modelo} resumo={resumoAcoes(modelo, filtrosAtivos)} podeAtualizarCotacao={podeAtualizarCotacao} atualizandoIds={atualizandoIds} onUpdate={atualizarCotacao} />}
                 </>
             )}
             {atualizandoLista && <span className="assets-refreshing" role="status">Atualizando lista…</span>}
-            {modalAberto && <AcaoFormModal onClose={() => setModalAberto(false)} onSuccess={cadastrarConcluido} />}
+            {podeCadastrar && modalAberto && <AcaoFormModal onClose={() => setModalAberto(false)} onSuccess={cadastrarConcluido} onForbidden={acessoAdministrativoNegado} />}
         </div>
     );
 }

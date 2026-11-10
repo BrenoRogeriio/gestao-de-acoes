@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "test": "node --test src/utils/financeiro.test.js src/utils/dashboard.test.js src/utils/carteira.test.js src/utils/historico.test.js src/utils/acoes.test.js src/utils/corretoras.test.js src/utils/lancamentos.test.js src/auth/auth.test.js",
+    "test": "node --test src/utils/financeiro.test.js src/utils/dashboard.test.js src/utils/carteira.test.js src/utils/historico.test.js src/utils/acoes.test.js src/utils/corretoras.test.js src/utils/lancamentos.test.js src/utils/usuarios.test.js src/auth/auth.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

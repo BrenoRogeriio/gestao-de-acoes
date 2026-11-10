@@ -1,3 +1,5 @@
+import { podeGerenciarUsuarios } from './permissoes.js';
+
 export const ROTAS_POR_PAGINA = Object.freeze({
     dashboard: '/',
     carteira: '/carteira',
@@ -5,7 +7,8 @@ export const ROTAS_POR_PAGINA = Object.freeze({
     operacoes: '/lancamentos',
     acoes: '/acoes',
     corretoras: '/corretoras',
-    investidores: '/investidores'
+    investidores: '/investidores',
+    usuarios: '/admin/usuarios'
 });
 
 const PAGINAS_POR_ROTA = new Map(Object.entries(ROTAS_POR_PAGINA).map(([pagina, rota]) => [rota, pagina]));
@@ -17,7 +20,7 @@ export function normalizarCaminho(caminho = '/') {
     return normalizado.length > 1 ? normalizado.replace(/\/$/, '') : normalizado;
 }
 
-export function resolverAcesso({ caminho = '/', autenticado = false, carregando = false } = {}) {
+export function resolverAcesso({ caminho = '/', autenticado = false, carregando = false, usuario = null } = {}) {
     const rota = normalizarCaminho(caminho);
     if (carregando) return { estado: 'carregando', rota };
 
@@ -28,6 +31,9 @@ export function resolverAcesso({ caminho = '/', autenticado = false, carregando 
     }
 
     if (ROTAS_PUBLICAS.has(rota) || !PAGINAS_POR_ROTA.has(rota)) {
+        return { estado: 'redirecionar', rota, destino: '/' };
+    }
+    if (PAGINAS_POR_ROTA.get(rota) === 'usuarios' && !podeGerenciarUsuarios(usuario)) {
         return { estado: 'redirecionar', rota, destino: '/' };
     }
     return { estado: 'protegida', rota, pagina: PAGINAS_POR_ROTA.get(rota) };

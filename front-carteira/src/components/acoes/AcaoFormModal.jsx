@@ -3,7 +3,7 @@ import { Check, LoaderCircle, TrendingUp, X } from 'lucide-react';
 import { cadastrarAcao } from '../../services/acoes.js';
 import { criarFormularioAcao, MERCADOS, normalizarTicker, prepararCadastroAcao, validarFormularioAcao } from '../../utils/acoes.js';
 
-export default function AcaoFormModal({ onClose, onSuccess }) {
+export default function AcaoFormModal({ onClose, onSuccess, onForbidden }) {
     const [form, setForm] = useState(criarFormularioAcao);
     const [erros, setErros] = useState({});
     const [erroGeral, setErroGeral] = useState('');
@@ -63,6 +63,10 @@ export default function AcaoFormModal({ onClose, onSuccess }) {
             const acao = await cadastrarAcao(prepararCadastroAcao(form));
             await onSuccess(acao);
         } catch (falha) {
+            if (falha?.status === 403) {
+                await onForbidden?.();
+                return;
+            }
             setErroGeral(falha.message || 'Não foi possível validar esse ativo.');
             setEnviando(false);
             enviandoRef.current = false;

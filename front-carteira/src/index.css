@@ -8,6 +8,7 @@
 @import './styles/acoes.css';
 @import './styles/corretoras.css';
 @import './styles/lancamentos.css';
+@import './styles/usuarios.css';
 
 *,
 *::before,

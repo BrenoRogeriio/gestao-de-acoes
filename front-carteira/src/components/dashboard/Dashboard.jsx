@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
+import { podeCadastrarAcao } from '../../auth/permissoes.js';
+import { useAuth } from '../../auth/useAuth.js';
 import { consultarCarteira } from '../../services/carteira.js';
 import { criarModeloDashboard } from '../../utils/dashboard.js';
 import EmptyState from '../ui/EmptyState.jsx';
@@ -12,12 +14,14 @@ import PositionsOverview from './PositionsOverview.jsx';
 import ResultsBreakdown from './ResultsBreakdown.jsx';
 
 export default function Dashboard({ onNavigate }) {
+    const { usuario, carregando: perfilCarregando } = useAuth();
     const [dados, setDados] = useState({ resumos: [], posicoes: [] });
     const [carregando, setCarregando] = useState(true);
     const [atualizando, setAtualizando] = useState(false);
     const [erro, setErro] = useState(false);
     const [erroAtualizacao, setErroAtualizacao] = useState(false);
     const [moedaSelecionada, setMoedaSelecionada] = useState();
+    const podeCadastrar = podeCadastrarAcao(usuario, perfilCarregando);
 
     const carregar = async ({ signal, atualizacao = false, manterDados = false } = {}) => {
         if (atualizacao) setAtualizando(true);
@@ -79,10 +83,12 @@ export default function Dashboard({ onNavigate }) {
         return (
             <EmptyState
                 title="Sua carteira ainda está vazia"
-                description="Cadastre um ativo e registre uma compra para começar a acompanhar os indicadores reais."
+                description={podeCadastrar
+                    ? 'Cadastre um ativo e registre uma compra para começar a acompanhar os indicadores reais.'
+                    : 'Registre uma compra para começar a acompanhar os indicadores reais.'}
                 action={(
-                    <button className="button button-primary" type="button" onClick={() => onNavigate('acoes')}>
-                        <Plus size={17} aria-hidden="true" /> Cadastrar primeira ação
+                    <button className="button button-primary" type="button" onClick={() => onNavigate(podeCadastrar ? 'acoes' : 'operacoes')}>
+                        <Plus size={17} aria-hidden="true" /> {podeCadastrar ? 'Cadastrar primeira ação' : 'Registrar primeira compra'}
                     </button>
                 )}
             />

@@ -3,6 +3,7 @@ import {
     ArrowLeftRight, Building2, CandlestickChart, History, LayoutDashboard, Menu,
     LogOut, Moon, Plus, Sun, TrendingUp, UserCircle, Users, WalletCards, X
 } from 'lucide-react';
+import { podeGerenciarUsuarios } from '../../auth/permissoes.js';
 import { identidadeUsuario } from '../../auth/usuario.js';
 
 const NAVEGACAO = [
@@ -20,7 +21,8 @@ const NAVEGACAO = [
             { id: 'operacoes', label: 'Lançamentos', icon: ArrowLeftRight },
             { id: 'acoes', label: 'Ações', icon: TrendingUp },
             { id: 'corretoras', label: 'Corretoras', icon: Building2 },
-            { id: 'investidores', label: 'Investidores', icon: Users }
+            { id: 'investidores', label: 'Investidores', icon: Users },
+            { id: 'usuarios', label: 'Usuários', icon: UserCircle, adminOnly: true }
         ]
     }
 ];
@@ -91,7 +93,7 @@ export default function AppLayout({ activePage, onNavigate, page, darkMode, onTo
                     {NAVEGACAO.map(secao => (
                         <div className="nav-section" key={secao.label}>
                             <p className="nav-section-label">{secao.label}</p>
-                            {secao.items.map(item => {
+                            {secao.items.filter(item => !item.adminOnly || podeGerenciarUsuarios(usuario)).map(item => {
                                 const Icon = item.icon;
                                 const ativo = activePage === item.id;
                                 return (

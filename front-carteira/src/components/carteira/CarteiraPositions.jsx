@@ -18,7 +18,7 @@ function ValorIndisponivel({ children, indisponivel }) {
     return <span title="Cotação indisponível"><span aria-hidden="true">—</span><span className="sr-only">Cotação indisponível</span></span>;
 }
 
-function AcoesPosicao({ posicao, atualizando, onOperation, onRefreshQuote }) {
+function AcoesPosicao({ posicao, podeAtualizarCotacao, atualizando, onOperation, onRefreshQuote }) {
     return (
         <div className="position-actions" aria-label={`Ações para ${posicao.ticker}`}>
             <button className="position-action" type="button" onClick={() => onOperation(posicao, 'COMPRA')}>
@@ -27,10 +27,10 @@ function AcoesPosicao({ posicao, atualizando, onOperation, onRefreshQuote }) {
             <button className="position-action" type="button" onClick={() => onOperation(posicao, 'VENDA')}>
                 <TrendingDown size={15} aria-hidden="true" /> Vender
             </button>
-            <button className="position-action position-action-quote" type="button" disabled={atualizando} onClick={() => onRefreshQuote(posicao)}>
+            {podeAtualizarCotacao && <button className="position-action position-action-quote" type="button" disabled={atualizando} onClick={() => onRefreshQuote(posicao)}>
                 <RefreshCw className={atualizando ? 'is-spinning' : ''} size={15} aria-hidden="true" />
                 {atualizando ? 'Atualizando…' : 'Cotação'}
-            </button>
+            </button>}
         </div>
     );
 }
@@ -58,6 +58,7 @@ export default function CarteiraPositions({
     busca,
     ordenacao,
     atualizandoCotacao,
+    podeAtualizarCotacao,
     onSearch,
     onSort,
     onOperation,
@@ -124,7 +125,7 @@ export default function CarteiraPositions({
                                             <td className="number-cell">{formatarValorFinanceiro(posicao.valorInvestido, posicao.moeda)}</td>
                                             <td className="number-cell"><strong><ValorIndisponivel indisponivel={!valorDisponivel(posicao.valorAtual)}>{formatarValorFinanceiro(posicao.valorAtual, posicao.moeda)}</ValorIndisponivel></strong></td>
                                             <td><Resultado posicao={posicao} /></td>
-                                            <td><AcoesPosicao posicao={posicao} atualizando={atualizandoCotacao === posicao.acaoId} onOperation={onOperation} onRefreshQuote={onRefreshQuote} /></td>
+                                            <td><AcoesPosicao posicao={posicao} podeAtualizarCotacao={podeAtualizarCotacao} atualizando={atualizandoCotacao === posicao.acaoId} onOperation={onOperation} onRefreshQuote={onRefreshQuote} /></td>
                                         </tr>
                                     );
                                 })}
@@ -143,7 +144,7 @@ export default function CarteiraPositions({
                                     <div><dt>Valor investido</dt><dd>{formatarValorFinanceiro(posicao.valorInvestido, posicao.moeda)}</dd></div>
                                     <div><dt>Valor atual</dt><dd><ValorIndisponivel indisponivel={!valorDisponivel(posicao.valorAtual)}>{formatarValorFinanceiro(posicao.valorAtual, posicao.moeda)}</ValorIndisponivel></dd></div>
                                 </dl>
-                                <AcoesPosicao posicao={posicao} atualizando={atualizandoCotacao === posicao.acaoId} onOperation={onOperation} onRefreshQuote={onRefreshQuote} />
+                                <AcoesPosicao posicao={posicao} podeAtualizarCotacao={podeAtualizarCotacao} atualizando={atualizandoCotacao === posicao.acaoId} onOperation={onOperation} onRefreshQuote={onRefreshQuote} />
                             </article>
                         ))}
                     </div>

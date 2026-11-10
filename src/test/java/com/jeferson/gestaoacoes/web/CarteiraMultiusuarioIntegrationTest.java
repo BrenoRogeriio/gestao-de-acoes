@@ -59,7 +59,9 @@ class CarteiraMultiusuarioIntegrationTest {
         acaoBrlId = inserirAcao("MULT3", "BRASIL", "BRL", "12.0000");
         acaoUsdId = inserirAcao("MULTUSD", "ESTADOS_UNIDOS", "USD", "25.0000");
         tokenA = cadastrar("a@example.com", "Usuario A");
-        tokenB = cadastrar("b@example.com", "Usuario B");
+        cadastrar("b@example.com", "Administrador B");
+        jdbc.update("UPDATE usuarios SET perfil = 'ADMIN' WHERE email = 'b@example.com'");
+        tokenB = autenticar("b@example.com");
     }
 
     @Test
@@ -132,6 +134,26 @@ class CarteiraMultiusuarioIntegrationTest {
         assertEquals(2, contar("SELECT COUNT(*) FROM transacoes WHERE idempotency_key = 'mesma-chave'"));
     }
 
+    @Test
+    void userEAdminCompramEVendemSomenteNasPropriasCarteiras() throws Exception {
+        comprar(tokenA, acaoBrlId, 3, "10.0000", "user-compra");
+        vender(tokenA, acaoBrlId, 1, "12.0000", "user-venda", 200);
+        comprar(tokenB, acaoBrlId, 4, "11.0000", "admin-compra");
+        vender(tokenB, acaoBrlId, 2, "13.0000", "admin-venda", 200);
+
+        assertEquals(2, consultar("/carteira/posicao", tokenA).get(0).get("quantidade").asInt());
+        assertEquals(2, consultar("/carteira/posicao", tokenB).get(0).get("quantidade").asInt());
+        assertEquals(2, consultar("/carteira/historico", tokenA).size());
+        assertEquals(2, consultar("/carteira/historico", tokenB).size());
+
+        Long usuarioA = usuarioId("a@example.com");
+        Long usuarioB = usuarioId("b@example.com");
+        assertEquals(2, contar("SELECT COUNT(*) FROM transacoes WHERE usuario_id = ?", usuarioA));
+        assertEquals(2, contar("SELECT COUNT(*) FROM transacoes WHERE usuario_id = ?", usuarioB));
+        assertEquals(1, contar("SELECT COUNT(*) FROM posicoes WHERE usuario_id = ?", usuarioA));
+        assertEquals(1, contar("SELECT COUNT(*) FROM posicoes WHERE usuario_id = ?", usuarioB));
+    }
+
     private String cadastrar(String email, String nome) throws Exception {
         String resposta = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -139,6 +161,17 @@ class CarteiraMultiusuarioIntegrationTest {
                                 {"nome":"%s","email":"%s","senha":"%s"}
                                 """.formatted(nome, email, SENHA)))
                 .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        return objectMapper.readTree(resposta).get("token").asText();
+    }
+
+    private String autenticar(String email) throws Exception {
+        String resposta = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","senha":"%s"}
+                                """.formatted(email, SENHA)))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         return objectMapper.readTree(resposta).get("token").asText();
     }

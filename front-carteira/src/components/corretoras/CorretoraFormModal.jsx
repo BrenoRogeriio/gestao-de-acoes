@@ -19,7 +19,7 @@ function CampoFormulario({ id, label, campo, form, erros, enviando, onChange, ..
     );
 }
 
-export default function CorretoraFormModal({ onClose, onSuccess }) {
+export default function CorretoraFormModal({ onClose, onSuccess, onForbidden }) {
     const [form, setForm] = useState(criarFormularioCorretora);
     const [erros, setErros] = useState({});
     const [erroGeral, setErroGeral] = useState('');
@@ -78,6 +78,10 @@ export default function CorretoraFormModal({ onClose, onSuccess }) {
             const corretora = await cadastrarCorretora(prepararCadastroCorretora(form));
             await onSuccess(corretora);
         } catch (falha) {
+            if (falha?.status === 403) {
+                await onForbidden?.();
+                return;
+            }
             setErroGeral(falha.message || 'Não foi possível cadastrar a instituição.');
             setEnviando(false);
             enviandoRef.current = false;

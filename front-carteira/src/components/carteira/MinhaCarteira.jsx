@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Plus, RefreshCw, X } from 'lucide-react';
+import { podeAtualizarCotacaoGlobal } from '../../auth/permissoes.js';
+import { useAuth } from '../../auth/useAuth.js';
 import { consultarCarteira, solicitarAtualizacaoCotacao } from '../../services/carteira.js';
 import { criarModeloCarteira } from '../../utils/carteira.js';
 import DashboardMetrics from '../dashboard/DashboardMetrics.jsx';
@@ -12,6 +14,7 @@ import CarteiraPositions from './CarteiraPositions.jsx';
 import OperationModal from './OperationModal.jsx';
 
 export default function MinhaCarteira({ onNavigate }) {
+    const { usuario, carregando: perfilCarregando, atualizarUsuario } = useAuth();
     const [dados, setDados] = useState({ resumos: [], posicoes: [] });
     const [carregando, setCarregando] = useState(true);
     const [atualizando, setAtualizando] = useState(false);
@@ -23,6 +26,11 @@ export default function MinhaCarteira({ onNavigate }) {
     const [operacao, setOperacao] = useState(null);
     const [atualizandoCotacao, setAtualizandoCotacao] = useState(null);
     const [feedback, setFeedback] = useState(null);
+    const [permissaoAtualizacaoNegada, setPermissaoAtualizacaoNegada] = useState(false);
+    const podeAtualizarCotacao = podeAtualizarCotacaoGlobal(
+        usuario,
+        perfilCarregando || permissaoAtualizacaoNegada
+    );
 
     const carregar = async ({ signal, manterDados = false } = {}) => {
         if (manterDados) setAtualizando(true);
@@ -90,6 +98,7 @@ export default function MinhaCarteira({ onNavigate }) {
     };
 
     const atualizarCotacao = async posicao => {
+        if (!podeAtualizarCotacao) return;
         setAtualizandoCotacao(posicao.acaoId);
         setFeedback(null);
         try {
@@ -99,6 +108,16 @@ export default function MinhaCarteira({ onNavigate }) {
                 ? { tone: 'success', message: `Cotação de ${posicao.ticker} atualizada com sucesso.` }
                 : { tone: 'warning', message: 'Cotação atualizada, mas não foi possível recarregar a posição.' });
         } catch (falha) {
+            if (falha?.status === 403) {
+                setPermissaoAtualizacaoNegada(true);
+                setFeedback({ tone: 'error', message: 'Você não tem permissão para atualizar cotações globais.' });
+                try {
+                    await atualizarUsuario();
+                } catch (erroAtualizacaoUsuario) {
+                    if (erroAtualizacaoUsuario?.status !== 401) console.error(erroAtualizacaoUsuario);
+                }
+                return;
+            }
             setFeedback({ tone: 'error', message: falha.message });
         } finally {
             setAtualizandoCotacao(null);
@@ -183,6 +202,7 @@ export default function MinhaCarteira({ onNavigate }) {
                 busca={busca}
                 ordenacao={ordenacao}
                 atualizandoCotacao={atualizandoCotacao}
+                podeAtualizarCotacao={podeAtualizarCotacao}
                 onSearch={setBusca}
                 onSort={setOrdenacao}
                 onOperation={abrirOperacao}

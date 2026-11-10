@@ -7,7 +7,14 @@ import { identidadeUsuario } from './usuario.js';
 import { prepararCadastro, prepararLogin, validarCadastro, validarLogin } from './validacao.js';
 import { resolverAcesso } from './rotas.js';
 import { CHAVE_TOKEN_SESSAO, lerTokenJWT, limparTokenJWT, salvarTokenJWT } from './session.js';
-import { podeExcluirCorretora } from './permissoes.js';
+import {
+    ehAdministrador,
+    podeAtualizarCotacaoGlobal,
+    podeCadastrarAcao,
+    podeCadastrarCorretora,
+    podeExcluirCorretora,
+    podeGerenciarUsuarios
+} from './permissoes.js';
 
 class SessionStorageFake {
     #dados = new Map();
@@ -92,11 +99,21 @@ test('restauração consulta /auth/me e retorna o usuário', async () => {
     assert.deepEqual(await obterUsuarioAutenticado(undefined, request), { nome: 'Ana', email: 'ana@example.com', perfil: 'ADMIN' });
 });
 
-test('permissão de exclusão só é liberada para ADMIN com perfil carregado', () => {
-    assert.equal(podeExcluirCorretora({ perfil: 'USER' }), false);
-    assert.equal(podeExcluirCorretora({ perfil: 'ADMIN' }), true);
-    assert.equal(podeExcluirCorretora({ perfil: 'ADMIN' }, true), false);
-    assert.equal(podeExcluirCorretora(null), false);
+test('matriz administrativa só libera as quatro operações para ADMIN com perfil carregado', () => {
+    const permissoes = [
+        podeCadastrarAcao,
+        podeCadastrarCorretora,
+        podeAtualizarCotacaoGlobal,
+        podeExcluirCorretora
+    ];
+    for (const verificar of permissoes) {
+        assert.equal(verificar({ perfil: 'USER' }), false);
+        assert.equal(verificar({ perfil: 'ADMIN' }), true);
+        assert.equal(verificar({ perfil: 'ADMIN' }, true), false);
+        assert.equal(verificar(null), false);
+    }
+    assert.equal(ehAdministrador({ perfil: 'ADMIN' }), true);
+    assert.equal(ehAdministrador({ perfil: 'admin' }), false);
 });
 
 test('token inválido é removido após 401 de rota protegida', async () => {
@@ -132,6 +149,15 @@ test('rota protegida sem autenticação redireciona para login', () => {
 
 test('rota protegida autenticada resolve a página existente', () => {
     assert.deepEqual(resolverAcesso({ caminho: '/corretoras', autenticado: true }), { estado: 'protegida', rota: '/corretoras', pagina: 'corretoras' });
+});
+
+test('rota administrativa exige ADMIN e perfil carregado', () => {
+    assert.deepEqual(resolverAcesso({ caminho: '/admin/usuarios', autenticado: true, usuario: { perfil: 'USER' } }), { estado: 'redirecionar', rota: '/admin/usuarios', destino: '/' });
+    assert.deepEqual(resolverAcesso({ caminho: '/admin/usuarios', autenticado: true, usuario: { perfil: 'ADMIN' } }), { estado: 'protegida', rota: '/admin/usuarios', pagina: 'usuarios' });
+    assert.deepEqual(resolverAcesso({ caminho: '/admin/usuarios', autenticado: true, carregando: true, usuario: { perfil: 'ADMIN' } }), { estado: 'carregando', rota: '/admin/usuarios' });
+    assert.equal(podeGerenciarUsuarios({ perfil: 'USER' }), false);
+    assert.equal(podeGerenciarUsuarios({ perfil: 'ADMIN' }), true);
+    assert.equal(podeGerenciarUsuarios({ perfil: 'ADMIN' }, true), false);
 });
 
 test('logout remove o token da sessão', () => {

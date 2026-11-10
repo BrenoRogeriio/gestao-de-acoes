@@ -183,3 +183,13 @@ test('mantém estruturas distintas para tabela desktop e cards mobile', async ()
     assert.match(css, /@media \(max-width: 820px\)/);
     assert.match(css, /\.portfolio-table-wrap \{\s*display: none;/);
 });
+
+test('mantém compra e venda para USER e condiciona somente a cotação global', async () => {
+    const pagina = await readFile(new URL('../components/carteira/MinhaCarteira.jsx', import.meta.url), 'utf8');
+    const posicoes = await readFile(new URL('../components/carteira/CarteiraPositions.jsx', import.meta.url), 'utf8');
+    assert.match(pagina, /podeAtualizarCotacaoGlobal/);
+    assert.match(pagina, /podeAtualizarCotacao=\{podeAtualizarCotacao\}/);
+    assert.match(posicoes, /\/> Comprar/);
+    assert.match(posicoes, /\/> Vender/);
+    assert.match(posicoes, /podeAtualizarCotacao && <button className="position-action position-action-quote"/);
+});
