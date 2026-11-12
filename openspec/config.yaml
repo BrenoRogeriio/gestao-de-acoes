@@ -1,0 +1,41 @@
+schema: spec-driven
+
+context: |
+  Aplicação de gestão de ações, corretoras e carteiras.
+  Backend em Java 21 com Spring Boot e PostgreSQL; frontend em React com Vite.
+  Autenticação JWT e autorização RBAC com perfis USER e ADMIN.
+  Testes com JUnit 5 e Testcontainers; cobertura com JaCoCo e portão mínimo versionado.
+  Preserve dados financeiros reais: não altere dados ou bancos compartilhados nem volumes Docker sem autorização explícita.
+  Não altere regras financeiras, autenticação ou autorização sem requisito aprovado e testes correspondentes.
+  Escreva propostas, especificações, designs e tarefas em português brasileiro.
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
