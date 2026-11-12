@@ -325,6 +325,18 @@ Backend, com JDK 21:
 .\mvnw.cmd test
 ```
 
+No Windows, a validação completa limpa os artefatos anteriores, executa a suíte e aplica o portão JaCoCo:
+
+```powershell
+.\mvnw.cmd clean verify
+```
+
+Os testes PostgreSQL usam Testcontainers e, portanto, exigem o Docker Desktop (ou outro daemon Docker compatível) em execução. Os limites mínimos versionados são 80% de linhas e 61% de ramos. Após o `verify`, abra o relatório HTML no Windows com:
+
+```powershell
+Start-Process .\target\site\jacoco\index.html
+```
+
 ```bash
 ./mvnw test
 ```

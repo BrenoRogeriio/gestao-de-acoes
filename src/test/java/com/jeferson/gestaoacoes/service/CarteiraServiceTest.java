@@ -31,6 +31,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -321,6 +323,50 @@ class CarteiraServiceTest {
         assertEquals("A chave de idempotência já foi utilizada em outra operação.", exception.getMessage());
         verify(posicaoRepository, never()).findByUsuarioIdAndAcaoId(eq(USUARIO_ID), any());
         verify(transacaoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void deveAceitarChaveDeIdempotenciaComExatamenteCemCaracteres() {
+        // Arrange
+        String chaveNoLimite = "a".repeat(100);
+        prepararReferencias();
+        when(transacaoRepository.findByUsuarioIdAndIdempotencyKey(USUARIO_ID, chaveNoLimite))
+                .thenReturn(Optional.empty());
+        when(posicaoRepository.findByUsuarioIdAndAcaoId(USUARIO_ID, acao.getId()))
+                .thenReturn(Optional.empty());
+
+        // Act
+        service.registrarCompra(dto(1, "10.0000"), " " + chaveNoLimite + " ");
+
+        // Assert
+        ArgumentCaptor<Transacao> transacao = ArgumentCaptor.forClass(Transacao.class);
+        verify(transacaoRepository).findByUsuarioIdAndIdempotencyKey(USUARIO_ID, chaveNoLimite);
+        verify(transacaoRepository).saveAndFlush(transacao.capture());
+        assertThat(transacao.getValue().getIdempotencyKey()).isEqualTo(chaveNoLimite);
+    }
+
+    @Test
+    void deveRejeitarChaveDeIdempotenciaAcimaDeCemCaracteres() {
+        // Arrange
+        String chaveAcimaDoLimite = "a".repeat(101);
+
+        // Act e Assert
+        assertThatThrownBy(() -> service.registrarCompra(dto(1, "10.0000"), chaveAcimaDoLimite))
+                .isInstanceOf(RegraNegocioException.class)
+                .hasMessage("A chave de idempotência deve ter no máximo 100 caracteres.");
+        verifyNoInteractions(acaoRepository, corretoraRepository, posicaoRepository, transacaoRepository);
+    }
+
+    @Test
+    void deveRejeitarChaveDeIdempotenciaComApenasEspacos() {
+        // Arrange
+        String chaveSemConteudo = "   ";
+
+        // Act e Assert
+        assertThatThrownBy(() -> service.registrarCompra(dto(1, "10.0000"), chaveSemConteudo))
+                .isInstanceOf(RegraNegocioException.class)
+                .hasMessage("A chave de idempotência não pode estar vazia.");
+        verifyNoInteractions(acaoRepository, corretoraRepository, posicaoRepository, transacaoRepository);
     }
 
     private void prepararReferencias() {

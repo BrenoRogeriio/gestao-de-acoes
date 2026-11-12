@@ -6,9 +6,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
@@ -20,6 +23,7 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String BASE_URI_ERROS = "https://gestao-acoes.com/erros/";
 
     @ExceptionHandler(CredenciaisInvalidasException.class)
     public ProblemDetail handleCredenciaisInvalidasException(CredenciaisInvalidasException ex) {
@@ -107,6 +111,31 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+        return criarBadRequest(
+                "Parâmetro inválido",
+                "O parâmetro informado possui um valor inválido.",
+                "parametro-invalido");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingServletRequestParameterException(MissingServletRequestParameterException ex) {
+        return criarBadRequest(
+                "Parâmetro obrigatório ausente",
+                "Um parâmetro obrigatório não foi informado.",
+                "parametro-obrigatorio-ausente");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+        return criarProblemDetail(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "Método não permitido",
+                "O método HTTP informado não é permitido para este recurso.",
+                "metodo-nao-permitido");
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail handleResponseStatusException(ResponseStatusException ex) {
         String detail = ex.getReason() == null ? "A requisição não pode ser atendida." : ex.getReason();
@@ -126,5 +155,17 @@ public class GlobalExceptionHandler {
         problemDetail.setType(URI.create("https://gestao-acoes.com/erros/erro-interno"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
+    }
+
+    private ProblemDetail criarProblemDetail(HttpStatus status, String title, String detail, String typeSuffix) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
+        problemDetail.setTitle(title);
+        problemDetail.setType(URI.create(BASE_URI_ERROS + typeSuffix));
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
+    private ProblemDetail criarBadRequest(String title, String detail, String typeSuffix) {
+        return criarProblemDetail(HttpStatus.BAD_REQUEST, title, detail, typeSuffix);
     }
 }

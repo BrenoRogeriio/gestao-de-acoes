@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -85,6 +86,58 @@ class JwtServiceTest {
                 IllegalStateException.class, () -> new JwtService(SEGREDO_TESTE, " ", 480));
 
         assertEquals("JWT_ISSUER deve ser informado.", exception.getMessage());
+    }
+
+    @Test
+    void deveRejeitarSegredoNulo() {
+        // Arrange, Act e Assert
+        assertThat(assertThrows(
+                IllegalStateException.class,
+                () -> new JwtService(null, ISSUER_TESTE, 480)))
+                .hasMessage("JWT_SECRET deve possuir pelo menos 32 bytes.");
+    }
+
+    @Test
+    void deveRejeitarIssuerNulo() {
+        // Arrange, Act e Assert
+        assertThat(assertThrows(
+                IllegalStateException.class,
+                () -> new JwtService(SEGREDO_TESTE, null, 480)))
+                .hasMessage("JWT_ISSUER deve ser informado.");
+    }
+
+    @Test
+    void deveInvalidarTokenQuandoUsuarioEstaDesabilitado() {
+        // Arrange
+        JwtService service = new JwtService(SEGREDO_TESTE, ISSUER_TESTE, 480);
+        var usuarioAtivo = User.withUsername("usuario@example.com").password("hash").roles("USER").build();
+        var usuarioDesabilitado = User.withUsername("usuario@example.com")
+                .password("hash")
+                .roles("USER")
+                .disabled(true)
+                .build();
+        String token = service.gerarToken(usuarioAtivo);
+
+        // Act
+        boolean tokenValido = service.tokenValido(token, usuarioDesabilitado);
+
+        // Assert
+        assertThat(tokenValido).isFalse();
+    }
+
+    @Test
+    void deveInvalidarTokenQuandoUsernameDivergeDoSubject() {
+        // Arrange
+        JwtService service = new JwtService(SEGREDO_TESTE, ISSUER_TESTE, 480);
+        var usuarioDoToken = User.withUsername("usuario@example.com").password("hash").roles("USER").build();
+        var outroUsuario = User.withUsername("outro@example.com").password("hash").roles("USER").build();
+        String token = service.gerarToken(usuarioDoToken);
+
+        // Act
+        boolean tokenValido = service.tokenValido(token, outroUsuario);
+
+        // Assert
+        assertThat(tokenValido).isFalse();
     }
 
     private String criarTokenAssinado(String issuer) {
