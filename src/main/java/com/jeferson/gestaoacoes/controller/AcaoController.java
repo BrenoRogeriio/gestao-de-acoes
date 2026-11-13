@@ -65,7 +65,7 @@ public class AcaoController {
     }
 
     @PutMapping("/{id}/atualizar-cotacao")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<AcaoResponseDTO> atualizarCotacao(@PathVariable Long id) {
         AcaoResponseDTO response = service.atualizarCotacao(id);
         return ResponseEntity.ok(response);

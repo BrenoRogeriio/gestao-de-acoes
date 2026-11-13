@@ -46,7 +46,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/actuator/info").authenticated()
                         .requestMatchers("/actuator/**").denyAll()
                         .requestMatchers(HttpMethod.POST, "/acoes", "/corretoras").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/acoes/*/atualizar-cotacao").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/acoes/*/atualizar-cotacao").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/corretoras/*").hasRole("ADMIN")
                         .requestMatchers("/admin/usuarios/**").hasRole("ADMIN")
                         .requestMatchers("/acoes/**", "/corretoras/**", "/carteira/**", "/auth/me").authenticated()

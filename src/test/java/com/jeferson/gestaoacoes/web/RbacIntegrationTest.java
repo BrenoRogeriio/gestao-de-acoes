@@ -10,6 +10,7 @@ import com.jeferson.gestaoacoes.infrastructure.client.BrasilApiCvmResponse;
 import com.jeferson.gestaoacoes.infrastructure.client.TwelveDataClient;
 import com.jeferson.gestaoacoes.infrastructure.client.ViaCepClient;
 import com.jeferson.gestaoacoes.infrastructure.client.ViaCepResponse;
+import com.jeferson.gestaoacoes.exception.ProvedorExternoIndisponivelException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,11 +24,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -143,15 +146,20 @@ class RbacIntegrationTest {
     }
 
     @Test
-    void userAtualizandoCotacaoDeveRetornar403SemChamarProvedor() throws Exception {
+    void userAtualizandoCotacaoDeveRetornar200ComProvedorSimulado() throws Exception {
         Long acaoId = inserirAcao("COT3", "10.0000");
 
         mockMvc.perform(put("/acoes/{id}/atualizar-cotacao", acaoId)
-                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenUser)))
-                .andExpect(status().isForbidden());
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenUser))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"cotacaoAtual":999999.0000}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cotacaoAtual").value(25.0));
 
-        verify(brapiClient, never()).consultarCotacao(anyString(), anyString());
-        assertEquals(0, new BigDecimal("10.0000").compareTo(cotacao(acaoId)));
+        verify(brapiClient, times(1)).consultarCotacao("COT3", "");
+        assertEquals(0, new BigDecimal("25.0000").compareTo(cotacao(acaoId)));
     }
 
     @Test
@@ -163,7 +171,106 @@ class RbacIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cotacaoAtual").value(25.0));
 
+        verify(brapiClient, times(1)).consultarCotacao("COT3", "");
         assertEquals(0, new BigDecimal("25.0000").compareTo(cotacao(acaoId)));
+    }
+
+    @Test
+    void atualizacaoCotacaoSemTokenDeveRetornar401SemChamarProvedor() throws Exception {
+        Long acaoId = inserirAcao("SEMT3", "10.0000");
+
+        mockMvc.perform(put("/acoes/{id}/atualizar-cotacao", acaoId))
+                .andExpect(status().isUnauthorized());
+
+        verify(brapiClient, never()).consultarCotacao(anyString(), anyString());
+        assertEquals(0, new BigDecimal("10.0000").compareTo(cotacao(acaoId)));
+    }
+
+    @Test
+    void atualizacaoCotacaoDeAcaoInexistenteDeveRetornar422SemChamarProvedor() throws Exception {
+        mockMvc.perform(put("/acoes/{id}/atualizar-cotacao", 999999L)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenUser)))
+                .andExpect(status().isUnprocessableEntity());
+
+        verify(brapiClient, never()).consultarCotacao(anyString(), anyString());
+    }
+
+    @Test
+    void respostaInvalidaDevePreservarTodosOsDadosDaCotacaoAnterior() throws Exception {
+        Long acaoId = inserirAcao("INV3", "10.0000");
+        OffsetDateTime instanteAnterior = instanteCotacao(acaoId);
+        when(brapiClient.consultarCotacao("INV3", "")).thenReturn(new BrapiResponse(List.of(
+                new BrapiResult("INV3", "Empresa alterada", "BRL", new BigDecimal("30.0000"), "invalido"))));
+
+        mockMvc.perform(put("/acoes/{id}/atualizar-cotacao", acaoId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenUser)))
+                .andExpect(status().isBadGateway());
+
+        assertCotacaoPreservada(acaoId, "10.0000", instanteAnterior, "teste");
+    }
+
+    @Test
+    void falhaDoProvedorDevePreservarTodosOsDadosDaCotacaoAnterior() throws Exception {
+        Long acaoId = inserirAcao("FAIL3", "10.0000");
+        OffsetDateTime instanteAnterior = instanteCotacao(acaoId);
+        when(brapiClient.consultarCotacao("FAIL3", "")).thenThrow(
+                new ProvedorExternoIndisponivelException("indisponivel", new RuntimeException("falha simulada")));
+
+        mockMvc.perform(put("/acoes/{id}/atualizar-cotacao", acaoId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenAdmin)))
+                .andExpect(status().isServiceUnavailable());
+
+        assertCotacaoPreservada(acaoId, "10.0000", instanteAnterior, "teste");
+    }
+
+    @Test
+    void atualizarCotacaoDevePreservarHistoricoPosicaoResultadoEProprietario() throws Exception {
+        Long acaoId = inserirAcao("FIN3", "10.0000");
+        Long usuarioId = jdbc.queryForObject(
+                "SELECT id FROM usuarios WHERE email = ?", Long.class, EMAIL_USER);
+        Long corretoraId = inserirCorretoraFinanceira();
+        jdbc.update("INSERT INTO posicoes (usuario_id, acao_id, quantidade, preco_medio) VALUES (?, ?, 6, 10.0000)",
+                usuarioId, acaoId);
+        jdbc.update("""
+                INSERT INTO transacoes (usuario_id, acao_id, corretora_id, tipo_transacao, quantidade,
+                                        valor_unitario, data_hora_transacao, idempotency_key)
+                VALUES (?, ?, ?, 'COMPRA', 10, 10.0000, CURRENT_TIMESTAMP, 'cotacao-compra')
+                """, usuarioId, acaoId, corretoraId);
+        jdbc.update("""
+                INSERT INTO transacoes (usuario_id, acao_id, corretora_id, tipo_transacao, quantidade,
+                                        valor_unitario, data_hora_transacao, idempotency_key,
+                                        preco_medio_operacao, resultado_realizado)
+                VALUES (?, ?, ?, 'VENDA', 4, 15.0000, CURRENT_TIMESTAMP, 'cotacao-venda', 10.0000, 20.0000)
+                """, usuarioId, acaoId, corretoraId);
+
+        mockMvc.perform(put("/acoes/{id}/atualizar-cotacao", acaoId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenUser)))
+                .andExpect(status().isOk());
+
+        assertEquals(2, contar("SELECT COUNT(*) FROM transacoes WHERE usuario_id = ? AND acao_id = ?", usuarioId, acaoId));
+        assertEquals(6, jdbc.queryForObject("SELECT quantidade FROM posicoes WHERE usuario_id = ? AND acao_id = ?",
+                Integer.class, usuarioId, acaoId));
+        assertEquals(0, new BigDecimal("10.0000").compareTo(jdbc.queryForObject(
+                "SELECT preco_medio FROM posicoes WHERE usuario_id = ? AND acao_id = ?",
+                BigDecimal.class, usuarioId, acaoId)));
+        assertEquals(0, new BigDecimal("20.0000").compareTo(jdbc.queryForObject(
+                "SELECT resultado_realizado FROM transacoes WHERE idempotency_key = 'cotacao-venda'",
+                BigDecimal.class)));
+        assertEquals(usuarioId, jdbc.queryForObject(
+                "SELECT usuario_id FROM posicoes WHERE acao_id = ?", Long.class, acaoId));
+        assertEquals(0, new BigDecimal("10.0000").compareTo(jdbc.queryForObject(
+                "SELECT valor_unitario FROM transacoes WHERE idempotency_key = 'cotacao-compra'",
+                BigDecimal.class)));
+        assertEquals(0, new BigDecimal("15.0000").compareTo(jdbc.queryForObject(
+                "SELECT valor_unitario FROM transacoes WHERE idempotency_key = 'cotacao-venda'",
+                BigDecimal.class)));
+    }
+
+    @Test
+    void userContinuaProibidoDeGerenciarUsuarios() throws Exception {
+        mockMvc.perform(get("/admin/usuarios")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenUser)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -208,6 +315,30 @@ class RbacIntegrationTest {
                 VALUES (?, 'Empresa RBAC', 'BRASIL', 'BRL', ?, CURRENT_TIMESTAMP, 'teste')
                 """, ticker, cotacao);
         return jdbc.queryForObject("SELECT id FROM acoes WHERE ticker = ?", Long.class, ticker);
+    }
+
+    private Long inserirCorretoraFinanceira() {
+        jdbc.update("""
+                INSERT INTO corretoras (cnpj, razao_social, cep, logradouro, bairro, cidade, uf,
+                                         situacao_cadastral, status_cvm, data_hora_cadastro)
+                VALUES ('11222333000181', 'Corretora Financeira', '01001000', 'Rua', 'Bairro',
+                        'Sao Paulo', 'SP', 'ATIVA', 'REGULAR', CURRENT_TIMESTAMP)
+                """);
+        return jdbc.queryForObject(
+                "SELECT id FROM corretoras WHERE cnpj = '11222333000181'", Long.class);
+    }
+
+    private OffsetDateTime instanteCotacao(Long acaoId) {
+        return jdbc.queryForObject(
+                "SELECT data_hora_cotacao FROM acoes WHERE id = ?", OffsetDateTime.class, acaoId);
+    }
+
+    private void assertCotacaoPreservada(
+            Long acaoId, String cotacaoEsperada, OffsetDateTime instanteEsperado, String provedorEsperado) {
+        assertEquals(0, new BigDecimal(cotacaoEsperada).compareTo(cotacao(acaoId)));
+        assertEquals(instanteEsperado, instanteCotacao(acaoId));
+        assertEquals(provedorEsperado, jdbc.queryForObject(
+                "SELECT provedor_origem FROM acoes WHERE id = ?", String.class, acaoId));
     }
 
     private BigDecimal cotacao(Long acaoId) {

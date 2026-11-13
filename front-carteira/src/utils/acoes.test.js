@@ -99,7 +99,7 @@ test('ordena por atualização com null ao final', () => {
     assert.deepEqual(criarModeloAcoes({ acoes: lista, ordenacao: 'atualizacao' }).acoes.map(acao => acao.ticker), ['MSFT', 'WEGE3', 'NULL3']);
 });
 
-test('cadastro e atualização de cotação aparecem somente com permissão administrativa', async () => {
+test('cadastro permanece administrativo e atualização usa permissão própria para USER e ADMIN', async () => {
     const componente = await readFile(new URL('../components/acoes/Acoes.jsx', import.meta.url), 'utf8');
     const lista = await readFile(new URL('../components/acoes/AcoesLista.jsx', import.meta.url), 'utf8');
     assert.match(componente, /podeCadastrarAcao/);
@@ -108,6 +108,8 @@ test('cadastro e atualização de cotação aparecem somente com permissão admi
     assert.match(componente, /podeAtualizarCotacaoGlobal/);
     assert.match(lista, /podeAtualizarCotacao && <td><AtualizarButton/);
     assert.match(lista, /podeAtualizarCotacao && <AtualizarButton/);
+    assert.match(lista, /disabled=\{atualizando\}/);
+    assert.match(lista, /atualizando \? 'Atualizando…' : 'Atualizar cotação'/);
 });
 
 test('403 administrativo revalida o perfil sem encerrar a sessão', async () => {
@@ -186,6 +188,13 @@ test('recarrega a lista após cadastro', async () => {
 test('atualiza a linha com a resposta real após nova cotação', async () => {
     const pagina = await readFile(new URL('../components/acoes/Acoes.jsx', import.meta.url), 'utf8');
     assert.match(pagina, /atuais\.map\(item => item\.id === acao\.id \? atualizada : item\)/);
+});
+
+test('falha na atualização preserva a lista e apresenta mensagem segura', async () => {
+    const pagina = await readFile(new URL('../components/acoes/Acoes.jsx', import.meta.url), 'utf8');
+    assert.match(pagina, /catch \(falha\)[\s\S]*setFeedback\(\{ tone: 'error'/);
+    assert.doesNotMatch(pagina, /catch \(falha\)[\s\S]*setAcoes\(\[\]/);
+    assert.match(pagina, /finally \{[\s\S]*atualizacoesRef\.current\.delete\(acao\.id\)/);
 });
 
 test('consulta a Page real e preserva totalElements', async () => {

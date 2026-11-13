@@ -103,7 +103,6 @@ test('matriz administrativa só libera as quatro operações para ADMIN com perf
     const permissoes = [
         podeCadastrarAcao,
         podeCadastrarCorretora,
-        podeAtualizarCotacaoGlobal,
         podeExcluirCorretora
     ];
     for (const verificar of permissoes) {
@@ -114,6 +113,15 @@ test('matriz administrativa só libera as quatro operações para ADMIN com perf
     }
     assert.equal(ehAdministrador({ perfil: 'ADMIN' }), true);
     assert.equal(ehAdministrador({ perfil: 'admin' }), false);
+});
+
+test('atualizacao manual de cotacao aceita USER e ADMIN com perfil carregado', () => {
+    assert.equal(podeAtualizarCotacaoGlobal({ perfil: 'USER' }), true);
+    assert.equal(podeAtualizarCotacaoGlobal({ perfil: 'ADMIN' }), true);
+    assert.equal(podeAtualizarCotacaoGlobal({ perfil: 'USER' }, true), false);
+    assert.equal(podeAtualizarCotacaoGlobal({ perfil: 'ADMIN' }, true), false);
+    assert.equal(podeAtualizarCotacaoGlobal(null), false);
+    assert.equal(podeAtualizarCotacaoGlobal({ perfil: 'OUTRO' }), false);
 });
 
 test('token inválido é removido após 401 de rota protegida', async () => {
