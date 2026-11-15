@@ -1,9 +1,7 @@
 .app-shell {
   min-height: 100vh;
   color: var(--color-text);
-  background:
-    radial-gradient(circle at 85% 0%, rgba(17, 107, 85, 0.07), transparent 25rem),
-    var(--color-background);
+  background: var(--color-background);
 }
 
 .skip-link {
@@ -29,9 +27,9 @@
   display: flex;
   width: var(--sidebar-width);
   flex-direction: column;
-  color: var(--color-text);
-  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
-  border-right: 1px solid var(--color-border);
+  color: var(--color-sidebar-text);
+  background: var(--color-sidebar);
+  border-right: 1px solid var(--color-sidebar-border);
 }
 
 .brand {
@@ -40,7 +38,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: 0 var(--space-6);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-sidebar-border);
 }
 
 .brand-mark {
@@ -49,10 +47,10 @@
   height: 42px;
   flex: 0 0 auto;
   place-items: center;
-  color: var(--color-primary-contrast);
-  background: var(--color-primary);
+  color: var(--color-sidebar-active-text);
+  background: var(--color-sidebar-active);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 18px rgba(17, 107, 85, 0.22);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .brand strong,
@@ -67,7 +65,7 @@
 
 .brand small {
   margin-top: 2px;
-  color: var(--color-text-muted);
+  color: var(--color-sidebar-muted);
   font-size: 0.72rem;
 }
 
@@ -83,7 +81,7 @@
 
 .nav-section-label {
   margin: 0 var(--space-3) var(--space-2);
-  color: var(--color-text-soft);
+  color: var(--color-sidebar-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.09em;
@@ -96,7 +94,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: 11px var(--space-3);
-  color: var(--color-text-muted);
+  color: var(--color-sidebar-muted);
   background: transparent;
   border: 0;
   border-radius: var(--radius-md);
@@ -108,13 +106,14 @@
 }
 
 .nav-item:hover {
-  color: var(--color-text);
-  background: var(--color-surface-strong);
+  color: var(--color-sidebar-text);
+  background: var(--color-sidebar-raised);
 }
 
 .nav-item.is-active {
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
+  color: var(--color-sidebar-active-text);
+  background: var(--color-sidebar-active);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .nav-item.is-active::after {
@@ -128,7 +127,7 @@
 
 .sidebar-footer {
   padding: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-sidebar-border);
 }
 
 .theme-toggle {
@@ -138,9 +137,9 @@
   justify-content: center;
   gap: var(--space-2);
   padding: 10px var(--space-3);
-  color: var(--color-text-muted);
-  background: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
+  color: var(--color-sidebar-text);
+  background: var(--color-sidebar-raised);
+  border: 1px solid var(--color-sidebar-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.8rem;
@@ -163,7 +162,7 @@
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-3) clamp(var(--space-5), 4vw, var(--space-10));
-  background: color-mix(in srgb, var(--color-background) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   border-bottom: 1px solid var(--color-border);
   backdrop-filter: blur(14px);
 }
@@ -178,7 +177,7 @@
 .topbar-eyebrow {
   display: block;
   margin-bottom: 2px;
-  color: var(--color-primary);
+  color: var(--color-text-muted);
   font-size: 0.69rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -276,7 +275,7 @@
     width: 100%;
     height: 100%;
     padding: 0;
-    background: rgba(5, 17, 13, 0.48);
+    background: rgba(0, 0, 0, 0.58);
     border: 0;
   }
 

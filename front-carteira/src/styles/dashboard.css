@@ -28,7 +28,7 @@
 .section-eyebrow {
   display: block;
   margin-bottom: var(--space-1);
-  color: var(--color-primary);
+  color: var(--color-text-muted);
   font-size: 0.67rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -64,8 +64,8 @@
 }
 
 .currency-option.is-active {
-  color: var(--color-primary);
-  background: var(--color-surface);
+  color: var(--color-primary-contrast);
+  background: var(--color-primary);
   box-shadow: var(--shadow-xs);
 }
 
@@ -191,9 +191,14 @@
 .distribution-track span {
   display: block;
   height: 100%;
-  background: var(--color-primary);
+  background: var(--color-chart-blue);
   border-radius: inherit;
 }
+
+.distribution-item:nth-child(5n + 2) .distribution-track span { background: var(--color-chart-purple); }
+.distribution-item:nth-child(5n + 3) .distribution-track span { background: var(--color-chart-cyan); }
+.distribution-item:nth-child(5n + 4) .distribution-track span { background: var(--color-chart-indigo); }
+.distribution-item:nth-child(5n + 5) .distribution-track span { background: var(--color-chart-slate); }
 
 .dashboard-inline-state {
   display: grid;

@@ -4,6 +4,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xs);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
 .button {
@@ -18,11 +19,13 @@
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 700;
-  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  box-shadow: var(--shadow-xs);
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .button:hover {
   transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .button-primary {
@@ -40,6 +43,18 @@
   border-color: var(--color-border-strong);
 }
 
+.button-secondary:hover {
+  background: var(--color-surface-strong);
+}
+
+.button:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.52;
+  transform: none;
+}
+
 .icon-button {
   width: 42px;
   height: 42px;
@@ -50,6 +65,14 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.icon-button:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-surface-strong);
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
 }
 
 .page-header {
@@ -62,8 +85,8 @@
 
 .page-header h2 {
   margin: 0;
-  font-size: clamp(1.1rem, 2vw, 1.35rem);
-  letter-spacing: -0.02em;
+  font-size: clamp(1.25rem, 2vw, 1.55rem);
+  letter-spacing: -0.035em;
 }
 
 .page-header p {
@@ -78,8 +101,21 @@
 
 .stat-card {
   min-width: 0;
+  position: relative;
+  overflow: hidden;
   padding: var(--space-5);
 }
+
+.stat-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--color-border-strong);
+  content: '';
+}
+
+.stat-positive::before { background: var(--color-success); }
+.stat-negative::before { background: var(--color-danger); }
 
 .stat-label-row {
   display: flex;
@@ -128,7 +164,7 @@
   overflow-wrap: anywhere;
   color: var(--color-text);
   font-size: clamp(1.2rem, 1.7vw, 1.4rem);
-  font-weight: 760;
+  font-weight: 780;
   letter-spacing: -0.035em;
 }
 
@@ -165,7 +201,7 @@
 .data-table th {
   padding: var(--space-3) var(--space-5);
   color: var(--color-text-muted);
-  background: var(--color-surface-subtle);
+  background: var(--color-surface-strong);
   border-bottom: 1px solid var(--color-border);
   font-size: 0.69rem;
   font-weight: 750;
@@ -250,8 +286,8 @@
   height: 48px;
   margin-bottom: var(--space-4);
   place-items: center;
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
+  color: var(--color-text);
+  background: var(--color-surface-strong);
   border-radius: 50%;
 }
 
@@ -288,6 +324,19 @@
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input-moderno:hover:not(:disabled),
+.input-with-prefix:hover {
+  border-color: var(--color-text-soft);
+}
+
+.input-moderno:focus,
+.input-with-prefix:focus-within {
+  background: var(--color-surface);
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 3px var(--color-info-soft);
 }
 
 .input-moderno:disabled {
