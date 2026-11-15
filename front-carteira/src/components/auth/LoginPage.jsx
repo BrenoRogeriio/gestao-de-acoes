@@ -3,6 +3,7 @@ import { ArrowRight, LoaderCircle } from 'lucide-react';
 import { navegar, navegarPorLink } from '../../auth/rotas.js';
 import { possuiErros, prepararLogin, validarLogin } from '../../auth/validacao.js';
 import { useAuth } from '../../auth/useAuth.js';
+import { mensagemErroLogin } from '../../services/autenticacao.js';
 import AuthShell from './AuthShell.jsx';
 import PasswordField from './PasswordField.jsx';
 
@@ -33,9 +34,7 @@ export default function LoginPage({ darkMode, onToggleTheme }) {
             await login(prepararLogin(campos));
             navegar('/', { substituir: true });
         } catch (erro) {
-            setErroGeral(erro?.status === 401
-                ? 'E-mail ou senha inválidos.'
-                : (erro?.message || 'Não foi possível entrar. Tente novamente.'));
+            setErroGeral(mensagemErroLogin(erro));
         } finally {
             setEnviando(false);
         }

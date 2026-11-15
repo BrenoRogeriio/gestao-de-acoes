@@ -25,6 +25,16 @@ public class GlobalExceptionHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String BASE_URI_ERROS = "https://gestao-acoes.com/erros/";
 
+    @ExceptionHandler(ContaDesativadaException.class)
+    public ProblemDetail handleContaDesativadaException(ContaDesativadaException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        problemDetail.setTitle("Conta desativada");
+        problemDetail.setType(URI.create(BASE_URI_ERROS + "conta-desativada"));
+        problemDetail.setProperty("codigo", ContaDesativadaException.CODIGO);
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
     @ExceptionHandler(CredenciaisInvalidasException.class)
     public ProblemDetail handleCredenciaisInvalidasException(CredenciaisInvalidasException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());

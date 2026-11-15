@@ -1,6 +1,7 @@
 package com.jeferson.gestaoacoes.web;
 
 import com.jeferson.gestaoacoes.controller.AcaoController;
+import com.jeferson.gestaoacoes.exception.ContaDesativadaException;
 import com.jeferson.gestaoacoes.exception.GlobalExceptionHandler;
 import com.jeferson.gestaoacoes.mapper.AcaoMapper;
 import com.jeferson.gestaoacoes.repository.AcaoRepository;
@@ -119,12 +120,35 @@ class GlobalExceptionHandlerMvcTest {
                 .doesNotContain("HttpRequestMethodNotSupportedException", "Request method", "stackTrace");
     }
 
+    @Test
+    void contaDesativadaDeveRetornarContratoTipadoSemExporExcecao() throws Exception {
+        MvcResult resultado = mockMvc.perform(get("/acoes/testes/conta-desativada"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.title").value("Conta desativada"))
+                .andExpect(jsonPath("$.detail").value(ContaDesativadaException.MENSAGEM))
+                .andExpect(jsonPath("$.type")
+                        .value("https://gestao-acoes.com/erros/conta-desativada"))
+                .andExpect(jsonPath("$.codigo").value(ContaDesativadaException.CODIGO))
+                .andExpect(jsonPath("$.timestamp").isString())
+                .andReturn();
+
+        assertThat(resultado.getResponse().getContentAsString())
+                .doesNotContain("ContaDesativadaException", "stackTrace");
+    }
+
     @RestController
     public static class RequiredParameterTestController {
 
         @GetMapping("/acoes/testes/parametro-obrigatorio")
         String consultar(@RequestParam String filtro) {
             return filtro;
+        }
+
+        @GetMapping("/acoes/testes/conta-desativada")
+        String contaDesativada() {
+            throw new ContaDesativadaException();
         }
     }
 }

@@ -2,7 +2,15 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { apiFetch, configurarTratamentoNaoAutorizado } from '../services/api.js';
-import { autenticar, cadastrarUsuario, obterUsuarioAutenticado } from '../services/autenticacao.js';
+import {
+    autenticar,
+    cadastrarUsuario,
+    MENSAGEM_CONTA_DESATIVADA,
+    MENSAGEM_CREDENCIAIS_INVALIDAS,
+    mensagemErroLogin,
+    obterUsuarioAutenticado,
+    TIPO_ERRO_CONTA_DESATIVADA
+} from '../services/autenticacao.js';
 import { identidadeUsuario } from './usuario.js';
 import { prepararCadastro, prepararLogin, validarCadastro, validarLogin } from './validacao.js';
 import { resolverAcesso } from './rotas.js';
@@ -54,6 +62,36 @@ test('login inválido expõe apenas o erro seguro centralizado', async () => {
     const request = async () => new Response(JSON.stringify({ detail: 'Credenciais inválidas' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     await assert.rejects(() => autenticar({ email: 'ana@example.com', senha: 'incorreta' }, request), erro => erro.status === 401 && erro.message === 'Credenciais inválidas');
     assert.deepEqual(validarLogin({ email: 'invalido', senha: '' }), { email: 'Informe um e-mail válido.', senha: 'Informe sua senha.' });
+});
+
+test('login de conta desativada usa type estável e não armazena token', async () => {
+    const request = async () => new Response(JSON.stringify({
+        type: TIPO_ERRO_CONTA_DESATIVADA,
+        codigo: 'CONTA_DESATIVADA',
+        detail: MENSAGEM_CONTA_DESATIVADA
+    }), { status: 403, headers: { 'Content-Type': 'application/problem+json' } });
+
+    let erroRecebido;
+    await assert.rejects(
+        () => autenticar({ email: 'ana@example.com', senha: 'senha-correta' }, request),
+        erro => {
+            erroRecebido = erro;
+            return erro.status === 403 && erro.type === TIPO_ERRO_CONTA_DESATIVADA;
+        }
+    );
+
+    assert.equal(mensagemErroLogin(erroRecebido), MENSAGEM_CONTA_DESATIVADA);
+    assert.equal(lerTokenJWT(), null);
+});
+
+test('senha incorreta preserva mensagem genérica sem depender do detail', async () => {
+    const erro = Object.assign(new Error('Texto variável do backend'), {
+        status: 401,
+        type: 'https://gestao-acoes.com/erros/nao-autorizado'
+    });
+
+    assert.equal(mensagemErroLogin(erro), MENSAGEM_CREDENCIAIS_INVALIDAS);
+    assert.equal(lerTokenJWT(), null);
 });
 
 test('cadastro válido envia somente nome, email e senha', async () => {

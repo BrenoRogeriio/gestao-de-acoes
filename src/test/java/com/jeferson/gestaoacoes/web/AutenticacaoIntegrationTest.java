@@ -43,6 +43,7 @@ class AutenticacaoIntegrationTest {
 
     private static final String ISSUER_TESTE = "gestao-acoes";
     private static final String SENHA = "senha-segura-123";
+    private static final String NOVA_SENHA = "nova-senha-segura-456";
     private static final String SEGREDO_TESTE = "test-only-jwt-secret-with-at-least-32-bytes-long";
 
     @Autowired
@@ -140,7 +141,8 @@ class AutenticacaoIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginJson("usuario@example.com", "senha-incorreta")))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.detail").value("E-mail ou senha inválidos."));
+                .andExpect(jsonPath("$.detail").value("E-mail ou senha inválidos."))
+                .andExpect(jsonPath("$.token").doesNotExist());
     }
 
     @Test
@@ -155,15 +157,57 @@ class AutenticacaoIntegrationTest {
     }
 
     @Test
-    void usuarioInativoNaoDeveAutenticar() throws Exception {
+    void usuarioInativoComSenhaCorretaDeveRetornarErroEspecificoSemToken() throws Exception {
         Usuario usuario = novoUsuario("inativo@example.com", false);
         usuarioRepository.saveAndFlush(usuario);
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginJson("inativo@example.com", SENHA)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(
+                        "Sua conta está desativada. Entre em contato com o administrador."))
+                .andExpect(jsonPath("$.type")
+                        .value("https://gestao-acoes.com/erros/conta-desativada"))
+                .andExpect(jsonPath("$.codigo").value("CONTA_DESATIVADA"))
+                .andExpect(jsonPath("$.token").doesNotExist());
+    }
+
+    @Test
+    void usuarioInativoComSenhaIncorretaDeveRetornar401GenericoSemToken() throws Exception {
+        usuarioRepository.saveAndFlush(novoUsuario("inativo@example.com", false));
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson("inativo@example.com", "senha-incorreta")))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.detail").value("E-mail ou senha inválidos."));
+                .andExpect(jsonPath("$.detail").value("E-mail ou senha inválidos."))
+                .andExpect(jsonPath("$.type")
+                        .value("https://gestao-acoes.com/erros/nao-autorizado"))
+                .andExpect(jsonPath("$.codigo").doesNotExist())
+                .andExpect(jsonPath("$.token").doesNotExist());
+    }
+
+    @Test
+    void senhaRedefinidaAntesDaDesativacaoDeveValidarSomenteNovaSenha() throws Exception {
+        Usuario usuario = novoUsuario("redefinido@example.com", true);
+        usuario.setSenhaHash(passwordEncoder.encode(NOVA_SENHA));
+        usuario.setAtivo(false);
+        usuarioRepository.saveAndFlush(usuario);
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson("redefinido@example.com", SENHA)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("E-mail ou senha inválidos."))
+                .andExpect(jsonPath("$.token").doesNotExist());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson("redefinido@example.com", NOVA_SENHA)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("CONTA_DESATIVADA"))
+                .andExpect(jsonPath("$.token").doesNotExist());
     }
 
     @Test

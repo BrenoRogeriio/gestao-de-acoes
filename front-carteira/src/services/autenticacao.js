@@ -1,5 +1,15 @@
 import { apiFetch, erroDaResposta } from './api.js';
 
+export const TIPO_ERRO_CONTA_DESATIVADA = 'https://gestao-acoes.com/erros/conta-desativada';
+export const MENSAGEM_CONTA_DESATIVADA = 'Sua conta está desativada. Entre em contato com o administrador.';
+export const MENSAGEM_CREDENCIAIS_INVALIDAS = 'E-mail ou senha inválidos.';
+
+export function mensagemErroLogin(erro) {
+    if (erro?.type === TIPO_ERRO_CONTA_DESATIVADA) return MENSAGEM_CONTA_DESATIVADA;
+    if (erro?.status === 401) return MENSAGEM_CREDENCIAIS_INVALIDAS;
+    return erro?.message || 'Não foi possível entrar. Tente novamente.';
+}
+
 async function lerAutenticacao(resposta, fallback) {
     if (!resposta.ok) throw await erroDaResposta(resposta, fallback);
 

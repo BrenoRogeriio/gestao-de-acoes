@@ -4,6 +4,7 @@ import com.jeferson.gestaoacoes.dto.AutenticacaoResponseDTO;
 import com.jeferson.gestaoacoes.dto.CadastroRequestDTO;
 import com.jeferson.gestaoacoes.dto.LoginRequestDTO;
 import com.jeferson.gestaoacoes.dto.UsuarioAutenticadoDTO;
+import com.jeferson.gestaoacoes.exception.ContaDesativadaException;
 import com.jeferson.gestaoacoes.exception.CredenciaisInvalidasException;
 import com.jeferson.gestaoacoes.exception.EmailJaCadastradoException;
 import com.jeferson.gestaoacoes.model.PerfilUsuario;
@@ -25,10 +26,13 @@ import java.util.Locale;
 @Service
 public class AutenticacaoService {
 
+    private static final String SENHA_SINTETICA = "credencial-inexistente";
+
     private final UsuarioRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final String senhaHashInexistente;
 
     public AutenticacaoService(UsuarioRepository repository, PasswordEncoder passwordEncoder,
                                AuthenticationManager authenticationManager, JwtService jwtService) {
@@ -36,6 +40,7 @@ public class AutenticacaoService {
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.senhaHashInexistente = passwordEncoder.encode(SENHA_SINTETICA);
     }
 
     @Transactional
@@ -62,12 +67,26 @@ public class AutenticacaoService {
 
     @Transactional(readOnly = true)
     public AutenticacaoResponseDTO autenticar(LoginRequestDTO dto) {
+        String email = normalizarEmail(dto.email());
+        Usuario usuario = repository.findByEmail(email).orElse(null);
+        if (usuario == null) {
+            passwordEncoder.matches(dto.senha(), senhaHashInexistente);
+            throw new CredenciaisInvalidasException();
+        }
+        if (!passwordEncoder.matches(dto.senha(), usuario.getSenhaHash())) {
+            throw new CredenciaisInvalidasException();
+        }
+        if (!usuario.isAtivo()) {
+            throw new ContaDesativadaException();
+        }
+
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(normalizarEmail(dto.email()), dto.senha()));
+                    new UsernamePasswordAuthenticationToken(email, dto.senha()));
             UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
-            Usuario usuario = repository.findById(principal.id()).orElseThrow(CredenciaisInvalidasException::new);
-            return criarResposta(principal, usuario);
+            Usuario usuarioAutenticado = repository.findById(principal.id())
+                    .orElseThrow(CredenciaisInvalidasException::new);
+            return criarResposta(principal, usuarioAutenticado);
         } catch (AuthenticationException ex) {
             throw new CredenciaisInvalidasException();
         }
