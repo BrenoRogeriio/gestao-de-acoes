@@ -19,6 +19,10 @@ import feign.Request;
 import feign.Response;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -191,6 +195,74 @@ class CorretoraServiceTest {
         prepararCvmValida("EM FUNCIONAMENTO NORMAL");
         when(viaCepClient.consultarCep(CEP)).thenThrow(feignException(503));
         assertThrows(ProvedorExternoIndisponivelException.class, () -> service.cadastrar(dto(CNPJ)));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"123", "11111111111111", "02332886000114"})
+    void cnpjInvalidoImpedeConsultasEGravacao(String cnpj) {
+        assertThrows(RegraNegocioException.class, () -> service.cadastrar(dto(cnpj)));
+        verifyNoInteractions(repository, brasilApiClient, viaCepClient);
+    }
+
+    @Test
+    void cnpjJaCadastradoImpedeNovaConsulta() {
+        when(repository.existsByCnpj(CNPJ)).thenReturn(true);
+
+        assertThrows(RegraNegocioException.class, () -> service.cadastrar(dto(CNPJ)));
+        verifyNoInteractions(brasilApiClient, viaCepClient);
+        verify(repository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            ", ATIVA",
+            "02332886000104,",
+            "02332886000105, ATIVA"
+    })
+    void rejeitaRespostaDaReceitaIncompativel(String cnpj, String situacao) {
+        when(brasilApiClient.consultarCnpj(CNPJ))
+                .thenReturn(new BrasilApiCnpjResponse(cnpj, "Corretora", null, situacao));
+
+        assertThrows(RespostaExternaInvalidaException.class, () -> service.cadastrar(dto(CNPJ)));
+        verify(brasilApiClient, never()).validarCorretoraCvm(any());
+        verify(repository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            ", NORMAL, 123",
+            "02332886000104, , 123",
+            "02332886000104, NORMAL,",
+            "02332886000105, NORMAL, 123"
+    })
+    void rejeitaRegistroCvmInconsistente(String cnpj, String status, String codigo) {
+        prepararCnpjValido();
+        when(brasilApiClient.validarCorretoraCvm(CNPJ))
+                .thenReturn(new BrasilApiCvmResponse(cnpj, status, "CORRETORA", codigo));
+
+        assertThrows(RespostaExternaInvalidaException.class, () -> service.cadastrar(dto(CNPJ)));
+        verifyNoInteractions(viaCepClient);
+        verify(repository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            ", Leblon, Rio, RJ",
+            "22440031, Leblon, Rio, RJ",
+            "22440032, , Rio, RJ",
+            "22440032, Leblon, , RJ",
+            "22440032, Leblon, Rio,",
+            "22440032, Leblon, Rio, R"
+    })
+    void enderecoIncompativelImpedeCadastro(String cep, String bairro, String cidade, String uf) {
+        prepararCnpjValido();
+        prepararCvmValida("EM FUNCIONAMENTO NORMAL");
+        when(viaCepClient.consultarCep(CEP))
+                .thenReturn(new ViaCepResponse(cep, "Rua A", "", bairro, cidade, uf, false));
+
+        assertThrows(RespostaExternaInvalidaException.class, () -> service.cadastrar(dto(CNPJ)));
+        verify(repository, never()).save(any());
     }
 
     private void prepararCnpjValido() {

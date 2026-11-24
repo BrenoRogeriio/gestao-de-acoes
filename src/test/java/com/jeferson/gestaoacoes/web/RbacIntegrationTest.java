@@ -308,6 +308,27 @@ class RbacIntegrationTest {
         return objectMapper.readTree(resposta).get("token").asText();
     }
 
+    @Test
+    void userConsultaTickerNormalizadoERecebeMercadoEMoeda() throws Exception {
+        Long id = inserirAcao("COT3", "10.0000");
+
+        mockMvc.perform(get("/acoes/ticker/cot3").header(HttpHeaders.AUTHORIZATION, bearer(tokenUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].mercado").value("BRASIL"))
+                .andExpect(jsonPath("$[0].moeda").value("BRL"));
+    }
+
+    @Test
+    void buscaPorMercadoRetorna404ParaTickerDeOutroMercado() throws Exception {
+        inserirAcao("COT3", "10.0000");
+
+        mockMvc.perform(get("/acoes/ticker/COT3").param("mercado", "ESTADOS_UNIDOS")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tokenUser)))
+                .andExpect(status().isNotFound());
+    }
+
     private Long inserirAcao(String ticker, String cotacao) {
         jdbc.update("""
                 INSERT INTO acoes (ticker, nome_empresa, mercado, moeda, cotacao_atual,

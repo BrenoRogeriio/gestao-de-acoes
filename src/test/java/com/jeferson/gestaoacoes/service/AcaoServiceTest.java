@@ -21,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -227,6 +228,42 @@ class AcaoServiceTest {
         when(twelveDataClient.consultarCotacao("AAPL", "United States", ""))
                 .thenThrow(feignException(503));
         assertThrows(ProvedorExternoIndisponivelException.class, () -> cadastrarEstadosUnidos("AAPL"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"404, ", "400, symbol not found", "400, NO DATA"})
+    void erroDeSimboloImpedeCadastro(int codigo, String mensagem) {
+        when(twelveDataClient.consultarCotacao("AAPL", "United States", ""))
+                .thenReturn(new TwelveDataResponse(null, null, null, null, null, null, codigo, mensagem, null));
+
+        var erro = assertThrows(RegraNegocioException.class, () -> cadastrarEstadosUnidos("AAPL"));
+
+        assertEquals("Ticker não encontrado no mercado americano (Twelve Data).", erro.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"400, , erro sem mensagem", "429, rate limit, rate limit"})
+    void preservaDiagnosticoDaRejeicaoDoProvedor(int codigo, String mensagem, String diagnostico) {
+        when(twelveDataClient.consultarCotacao("AAPL", "United States", ""))
+                .thenReturn(new TwelveDataResponse(null, null, null, null, null, null, codigo, mensagem, null));
+
+        var erro = assertThrows(RespostaExternaInvalidaException.class, () -> cadastrarEstadosUnidos("AAPL"));
+
+        assertEquals("A Twelve Data rejeitou a consulta: " + diagnostico, erro.getMessage());
+        verify(repository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {-1L, 0L, Long.MAX_VALUE})
+    void rejeitaTimestampInvalidoAntesDeSalvar(long timestamp) {
+        when(twelveDataClient.consultarCotacao("AAPL", "United States", ""))
+                .thenReturn(twelve("AAPL", "Apple", "USD", BigDecimal.TEN, timestamp));
+
+        var erro = assertThrows(RespostaExternaInvalidaException.class, () -> cadastrarEstadosUnidos("AAPL"));
+
+        assertEquals("A Twelve Data retornou um timestamp inválido.", erro.getMessage());
+        verify(repository, never()).save(any());
     }
 
     private void cadastrarBrasil(String ticker) {
